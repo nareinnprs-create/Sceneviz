@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Sceneviz">
+  <defs>
+    <linearGradient id="sv-cyan" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#67F4F2"/>
+      <stop offset=".55" stop-color="#16C5D0"/>
+      <stop offset="1" stop-color="#087F91"/>
+    </linearGradient>
+    <linearGradient id="sv-amber" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#FFE0A0"/>
+      <stop offset=".55" stop-color="#F2AE43"/>
+      <stop offset="1" stop-color="#B96B18"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="100" fill="#101319"/>
+  <path d="M104 130 L358 48 L358 145 L196 204 L358 268 L358 368 L104 277 L104 213 L260 267 L260 228 L104 167 Z" fill="url(#sv-cyan)" stroke="#9AFBFA" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M104 130 L196 204 L260 228 L260 267 L196 243 L104 277 L104 213 L172 190 Z" fill="url(#sv-amber)" stroke="#FFE0A0" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M358 268 L260 228 L260 267 L358 309 Z" fill="#075D6A"/>
+</svg>

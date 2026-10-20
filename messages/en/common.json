@@ -1,0 +1,590 @@
+{
+  "tabs": {
+    "image": "Image Studio",
+    "layers": "Layers Studio",
+    "video": "Video Studio",
+    "audio": "Audio Studio",
+    "clipping": "AI Clipping",
+    "motion-control": "Motion Control",
+    "vibe-motion": "Vibe Motion",
+    "lipsync": "Lip Sync",
+    "body-swap": "Body Swap",
+    "cinema": "Cinema Studio",
+    "marketing": "Marketing Studio",
+    "workflows": "Workflows",
+    "agents": "Agents",
+    "design-agent": "Design Agent",
+    "apps": "Explore Apps",
+    "ai-influencer": "AI Influencer Studio"
+  },
+  "categories": {
+    "images": "Images",
+    "video": "Video",
+    "audio": "Audio",
+    "agents-automation": "Agents & Automation"
+  },
+  "shell": {
+    "brand": "Sceneviz",
+    "studioFallback": "Studio",
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar",
+    "toggleNavMenu": "Toggle Navigation Menu",
+    "studioNavigation": "Studio navigation",
+    "toolsSuffix": "tools",
+    "settings": "Settings",
+    "dropHere": "Drop your media here",
+    "dropHereHint": "Images, videos, or audio files",
+    "dismiss": "Dismiss"
+  },
+  "settingsModal": {
+    "title": "Settings",
+    "subtitle": "Manage your AI studio preferences and authentication.",
+    "activeApiKey": "Active API Key",
+    "changeKey": "Change Key",
+    "close": "Close"
+  },
+  "notifications": {
+    "generating": "is generating",
+    "generationComplete": "- Generation complete",
+    "generationFailed": "- Generation failed",
+    "resultReady": "Your result is ready.",
+    "open": "Open →",
+    "openResult": "Open {label} result",
+    "dismissNotification": "Dismiss notification",
+    "ariaLabel": "Generation activity and notifications"
+  },
+  "apiKeyModal": {
+    "title": "Sceneviz",
+    "subtitlePrefix": "Enter your",
+    "subtitleSuffix": "API key to start creating",
+    "close": "Close",
+    "label": "API Access Key",
+    "placeholder": "Paste your key here...",
+    "missingKeyError": "Please enter your API key",
+    "submit": "Get Started",
+    "needKey": "Need a key?",
+    "getOneFree": "Get one free →"
+  },
+  "landing": {
+    "meta": {
+      "title": "Sceneviz — AI image, video & audio studio · Ideas into moving worlds.",
+      "description": "Sceneviz is an all-in-one AI studio for image, video, audio and lip-sync generation. Run 500+ models — FLUX, Seedance, Kling, Veo and more — from one workspace."
+    },
+    "announcement": {
+      "ariaLabel": "Announcements",
+      "items": [
+        {
+          "text": "Sceneviz Studio is live — image, video, audio & lip-sync in one tab",
+          "cta": "Open Studio",
+          "href": "/studio"
+        },
+        {
+          "text": "500+ AI models, one API",
+          "cta": "Explore models",
+          "href": "#models"
+        },
+        {
+          "text": "Local + cloud generation",
+          "cta": "See how",
+          "href": "#features"
+        }
+      ]
+    },
+    "nav": {
+      "studio": "Studio",
+      "models": "Models",
+      "features": "Features",
+      "cta": "Open Studio",
+      "menu": "Menu",
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu",
+      "themeLabel": "Theme",
+      "themeSystem": "System",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "studioHref": "/studio",
+      "modelsHref": "#models",
+      "featuresHref": "#features",
+      "tools": "Tools"
+    },
+    "hero": {
+      "badge": "Image · Video · Audio · Lip-sync",
+      "titleLead": "Ideas into",
+      "titleAccent": "moving worlds.",
+      "subtitle": "Sceneviz is an all-in-one studio for AI image, video, audio and lip-sync generation. Hundreds of state-of-the-art models, one workspace, no subscription.",
+      "primaryCta": "Start Creating",
+      "primaryHref": "/studio",
+      "secondaryCta": "Explore models",
+      "secondaryHref": "#models",
+      "stats": [
+        "500+ AI models",
+        "One API key",
+        "No subscription"
+      ]
+    },
+    "claims": {
+      "ariaLabel": "Platform highlights",
+      "items": [
+        {
+          "value": "500+",
+          "label": "AI models in one workspace"
+        },
+        {
+          "value": "No",
+          "label": "subscription required"
+        },
+        {
+          "value": "1",
+          "label": "API key for every tool"
+        },
+        {
+          "value": "4-in-1",
+          "label": "image, video, audio & lip-sync"
+        }
+      ]
+    },
+    "providers": {
+      "eyebrow": "TOP MODEL ECOSYSTEMS, ONE API",
+      "title": "Production model providers on Sceneviz",
+      "description": "The fastest way to experiment, build and ship creative AI. Reach every major model family through one workspace and one API key.",
+      "cta": "Open Studio",
+      "ctaHref": "/studio",
+      "ariaLabel": "Model providers available in Sceneviz",
+      "items": [
+        {
+          "name": "OpenAI",
+          "color": "#10a37f"
+        },
+        {
+          "name": "Google",
+          "color": "#4285f4"
+        },
+        {
+          "name": "Kling",
+          "color": "#16C5D0"
+        },
+        {
+          "name": "ByteDance",
+          "color": "#fb7299"
+        },
+        {
+          "name": "Black Forest Labs",
+          "color": "#e5e7eb"
+        },
+        {
+          "name": "MiniMax",
+          "color": "#f59e0b"
+        },
+        {
+          "name": "Qwen",
+          "color": "#8b5cf6"
+        },
+        {
+          "name": "Runway",
+          "color": "#a78bfa"
+        },
+        {
+          "name": "Suno",
+          "color": "#f2ae43"
+        },
+        {
+          "name": "Ideogram",
+          "color": "#22d3ee"
+        }
+      ]
+    },
+    "models": {
+      "eyebrow": "FEATURED MODELS",
+      "title": "Every modality, one studio",
+      "description": "Image, video and audio models side by side. Pick a model, tune its parameters and generate.",
+      "browse": "Browse all models",
+      "browseHref": "/studio",
+      "badges": {
+        "image": "Image",
+        "video": "Video",
+        "audio": "Audio"
+      },
+      "items": [
+        {
+          "name": "FLUX.2 Pro",
+          "provider": "Black Forest Labs",
+          "modality": "image",
+          "href": "/studio/image"
+        },
+        {
+          "name": "Seedream 5.0",
+          "provider": "ByteDance",
+          "modality": "image",
+          "href": "/studio/image"
+        },
+        {
+          "name": "Nano Banana 2.1",
+          "provider": "Google",
+          "modality": "image",
+          "href": "/studio/image"
+        },
+        {
+          "name": "Qwen Image 3.0",
+          "provider": "Alibaba",
+          "modality": "image",
+          "href": "/studio/image"
+        },
+        {
+          "name": "Seedance 2.0",
+          "provider": "ByteDance",
+          "modality": "video",
+          "href": "/studio/video"
+        },
+        {
+          "name": "Kling 3.0 Pro",
+          "provider": "Kling",
+          "modality": "video",
+          "href": "/studio/video"
+        },
+        {
+          "name": "Veo 3.1",
+          "provider": "Google",
+          "modality": "video",
+          "href": "/studio/video"
+        },
+        {
+          "name": "MiniMax Hailuo 2.3 Pro",
+          "provider": "MiniMax",
+          "modality": "video",
+          "href": "/studio/video"
+        },
+        {
+          "name": "Suno Create Music",
+          "provider": "Suno",
+          "modality": "audio",
+          "href": "/studio/audio"
+        },
+        {
+          "name": "Kling 2.1 Master",
+          "provider": "Kling",
+          "modality": "video",
+          "href": "/studio/video"
+        },
+        {
+          "name": "Suno Remix Music",
+          "provider": "Suno",
+          "modality": "audio",
+          "href": "/studio/audio"
+        },
+        {
+          "name": "Ideogram 4.0",
+          "provider": "Ideogram",
+          "modality": "image",
+          "href": "/studio/image"
+        }
+      ]
+    },
+    "features": {
+      "eyebrow": "WHY SCENEVIZ",
+      "title": "Three ways to create",
+      "description": "From a single prompt to multi-step pipelines to a chat-driven agent, Sceneviz adapts to how you work.",
+      "items": [
+        {
+          "title": "Studio",
+          "description": "One multi-tab canvas for image, video, audio and lip-sync generation, with every model parameter at hand.",
+          "cta": "Open Studio",
+          "href": "/studio"
+        },
+        {
+          "title": "Workflow",
+          "description": "Chain models into multi-step pipelines — generate, edit and render without leaving the canvas.",
+          "cta": "Open Workflow",
+          "href": "/studio"
+        },
+        {
+          "title": "Agents",
+          "description": "Describe the outcome and let a generation agent choose the models and run the steps for you.",
+          "cta": "Try an Agent",
+          "href": "/studio"
+        }
+      ]
+    },
+    "footer": {
+      "tagline": "One studio for every state-of-the-art AI media model. Build, explore and ship creative work from a single workspace.",
+      "status": "Available on the web & desktop",
+      "columns": [
+        {
+          "title": "PRODUCT",
+          "links": [
+            {
+              "label": "Studio",
+              "href": "/studio"
+            },
+            {
+              "label": "Image Studio",
+              "href": "/studio/image"
+            },
+            {
+              "label": "Video Studio",
+              "href": "/studio/video"
+            },
+            {
+              "label": "Audio Studio",
+              "href": "/studio/audio"
+            },
+            {
+              "label": "Lip Sync",
+              "href": "/studio/lipsync"
+            },
+            {
+              "label": "Workflows",
+              "href": "/studio/workflows"
+            }
+          ]
+        },
+        {
+          "title": "EXPLORE",
+          "links": [
+            {
+              "label": "Home",
+              "href": "/"
+            },
+            {
+              "label": "Models",
+              "href": "#models"
+            },
+            {
+              "label": "Features",
+              "href": "#features"
+            },
+            {
+              "label": "Providers",
+              "href": "#providers"
+            },
+            {
+              "label": "Assistant",
+              "href": "/assistant"
+            }
+          ]
+        },
+        {
+          "title": "MODELS",
+          "links": [
+            {
+              "label": "FLUX.2 Pro",
+              "href": "/studio/image"
+            },
+            {
+              "label": "Seedream 5.0",
+              "href": "/studio/image"
+            },
+            {
+              "label": "Seedance 2.0",
+              "href": "/studio/video"
+            },
+            {
+              "label": "Kling 3.0",
+              "href": "/studio/video"
+            },
+            {
+              "label": "Veo 3.1",
+              "href": "/studio/video"
+            },
+            {
+              "label": "MiniMax Hailuo 2.3 Pro",
+              "href": "/studio/video"
+            },
+            {
+              "label": "Suno Create Music",
+              "href": "/studio/audio"
+            },
+            {
+              "label": "Nano Banana",
+              "href": "/studio/image"
+            }
+          ]
+        },
+        {
+          "title": "TOOLS",
+          "links": [
+            {
+              "label": "Image Generator",
+              "href": "/studio/image"
+            },
+            {
+              "label": "Video Generator",
+              "href": "/studio/video"
+            },
+            {
+              "label": "Lip Sync",
+              "href": "/studio/lipsync"
+            },
+            {
+              "label": "Upscale",
+              "href": "/studio/image"
+            },
+            {
+              "label": "Face Swap",
+              "href": "/studio/body-swap"
+            },
+            {
+              "label": "Audio & Music",
+              "href": "/studio/audio"
+            }
+          ]
+        }
+      ],
+      "company": {
+        "title": "COMPANY",
+        "brand": "Opraiz Technology Pvt Ltd"
+      },
+      "language": "Language",
+      "languages": [
+        {
+          "label": "English",
+          "href": "/",
+          "code": "EN"
+        },
+        {
+          "label": "中文",
+          "href": "/zh",
+          "code": "ZH"
+        }
+      ],
+      "copyright": "© 2026 Opraiz Technology Pvt Ltd. All rights reserved."
+    },
+    "tools": {
+      "eyebrow": "CREATIVE TOOLS",
+      "title": "Every tool, one workspace",
+      "description": "From first prompt to final cut — purpose-built tools sit side by side in the same studio.",
+      "cta": "Open",
+      "items": [
+        {
+          "title": "AI Image Generator",
+          "description": "Text to image with FLUX, Seedream, Qwen and more.",
+          "href": "/studio/image",
+          "icon": "image"
+        },
+        {
+          "title": "AI Video Generator",
+          "description": "Text and image to video with Kling, Seedance, Veo and more.",
+          "href": "/studio/video",
+          "icon": "video"
+        },
+        {
+          "title": "Image to Video",
+          "description": "Animate any still into motion with camera control.",
+          "href": "/studio/video",
+          "icon": "imageToVideo"
+        },
+        {
+          "title": "Image Upscale",
+          "description": "Enlarge and sharpen up to 4K without losing detail.",
+          "href": "/studio/image",
+          "icon": "upscale"
+        },
+        {
+          "title": "Background Remover",
+          "description": "One-click cutouts with clean, hair-level edges.",
+          "href": "/studio/layers",
+          "icon": "background"
+        },
+        {
+          "title": "Watermark Remover",
+          "description": "Erase logos and stamps, rebuild the scene behind them.",
+          "href": "/studio/layers",
+          "icon": "watermark"
+        },
+        {
+          "title": "Face Swap",
+          "description": "Swap faces across photos and video with identity lock.",
+          "href": "/studio/body-swap",
+          "icon": "faceSwap"
+        },
+        {
+          "title": "Product Shot",
+          "description": "Drop your product into any scene or model shoot.",
+          "href": "/studio/image",
+          "icon": "product"
+        },
+        {
+          "title": "Lip Sync",
+          "description": "Match any voice to any face in 40+ languages.",
+          "href": "/studio/lipsync",
+          "icon": "lipSync"
+        },
+        {
+          "title": "AI Image Editor",
+          "description": "Inpaint, restyle and retouch with prompt-based edits.",
+          "href": "/studio/layers",
+          "icon": "editor"
+        },
+        {
+          "title": "AI Video Editor",
+          "description": "Cut long footage into clips with highlight detection.",
+          "href": "/studio/clipping",
+          "icon": "videoEditor"
+        },
+        {
+          "title": "Motion Controls",
+          "description": "Direct camera paths, speed ramps and keyframes.",
+          "href": "/studio/motion-control",
+          "icon": "motion"
+        },
+        {
+          "title": "AI Audio & Music",
+          "description": "Generate music, sound effects and voiceovers.",
+          "href": "/studio/audio",
+          "icon": "audio"
+        },
+        {
+          "title": "Anime Generator",
+          "description": "Turn prompts and photos into anime-style art.",
+          "href": "/studio/image",
+          "icon": "anime"
+        }
+      ]
+    },
+    "statsBand": {
+      "eyebrow": "BY THE NUMBERS",
+      "items": [
+        {
+          "value": "500+",
+          "label": "AI models"
+        },
+        {
+          "value": "16",
+          "label": "Studio tabs"
+        },
+        {
+          "value": "10+",
+          "label": "Media modalities"
+        },
+        {
+          "value": "0",
+          "label": "Subscriptions required"
+        }
+      ]
+    },
+    "apiSection": {
+      "eyebrow": "SCRIPTABLE",
+      "title": "Automate everything from your terminal",
+      "description": "Every studio is reachable through the Sceneviz API — get your key from the dashboard and generate from any shell or agent.",
+      "terminal": "api",
+      "steps": [
+        {
+          "num": "1",
+          "label": "Get an API key",
+          "code": "# from your Sceneviz dashboard"
+        },
+        {
+          "num": "2",
+          "label": "Send a request",
+          "code": "curl -X POST \"$SCENEVIZ_API_URL/v1/images\" -H \"Authorization: Bearer $SCENEVIZ_API_KEY\""
+        },
+        {
+          "num": "3",
+          "label": "Receive results",
+          "code": "# poll /v1/predictions until status: completed"
+        }
+      ],
+      "cta": "Open Studio",
+      "href": "/studio"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "root": true,
+  "extends": "next/core-web-vitals",
+  "ignorePatterns": [
+    "packages/Open-Poe-AI/**",
+    "packages/Vibe-Workflow/**",
+    "packages/Open-AI-Design-Agent/**",
+    "node_modules/**",
+    "dist/**",
+    "dist-ssr/**",
+    ".next/**",
+    "release/**",
+    "**/*.min.js"
+  ]
+}

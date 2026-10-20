@@ -1,0 +1,9 @@
+services:
+  sceneviz:
+    build: .
+    container_name: sceneviz
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped

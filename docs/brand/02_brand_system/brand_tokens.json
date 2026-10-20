@@ -1,0 +1,66 @@
+{
+  "brand": "SCENEVIZ",
+  "tagline": "IDEAS INTO MOVING WORLDS.",
+  "status": "Approved v1.0 master palette.",
+  "colors": [
+    {
+      "name": "Obsidian",
+      "token": "color.obsidian",
+      "hex": "#101319",
+      "role": "Dark backgrounds and core surfaces"
+    },
+    {
+      "name": "Panel",
+      "token": "color.panel",
+      "hex": "#171C24",
+      "role": "Raised dark panels and elevated surfaces"
+    },
+    {
+      "name": "Card",
+      "token": "color.card",
+      "hex": "#1E242D",
+      "role": "Cards and nested dark surfaces"
+    },
+    {
+      "name": "Electric Cyan",
+      "token": "color.electricCyan",
+      "hex": "#16C5D0",
+      "role": "Primary accent and active states"
+    },
+    {
+      "name": "Deep Teal",
+      "token": "color.deepTeal",
+      "hex": "#087F91",
+      "role": "Deep accent and dimensional depth"
+    },
+    {
+      "name": "Teal",
+      "token": "color.teal",
+      "hex": "#0E9AA5",
+      "role": "Secondary accent and hover states"
+    },
+    {
+      "name": "Cinematic Amber",
+      "token": "color.cinematicAmber",
+      "hex": "#F2AE43",
+      "role": "Selective highlights and accent"
+    },
+    {
+      "name": "Studio White",
+      "token": "color.studioWhite",
+      "hex": "#F4F5F7",
+      "role": "Light surfaces and text on dark"
+    },
+    {
+      "name": "Frame Grey",
+      "token": "color.frameGrey",
+      "hex": "#818996",
+      "role": "Secondary text and metadata"
+    }
+  ],
+  "typography": {
+    "display": "Space Grotesk",
+    "interface": "Inter",
+    "technical": "JetBrains Mono"
+  }
+}

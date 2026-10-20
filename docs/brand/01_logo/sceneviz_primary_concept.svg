@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="360" viewBox="0 0 1400 360">
+<defs><linearGradient id="cyan" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#67F4F2"/><stop offset=".52" stop-color="#16C5D0"/><stop offset="1" stop-color="#087F91"/></linearGradient><linearGradient id="amber" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FFE0A0"/><stop offset=".55" stop-color="#F2AE43"/><stop offset="1" stop-color="#B96B18"/></linearGradient></defs>
+<rect width="1400" height="360" fill="#101319"/>
+<g transform="translate(65,48)" stroke-linejoin="round"><path d="M36 68 L188 6 L188 72 L92 112 L188 155 L188 222 L36 160 L36 115 L128 153 L128 126 L36 89 Z" fill="url(#cyan)" stroke="#9AFBFA" stroke-width="2"/><path d="M36 68 L92 112 L128 126 L128 153 L92 139 L36 160 L36 115 L77 100 Z" fill="url(#amber)" stroke="#FFE0A0" stroke-width="2"/><path d="M188 155 L128 126 L128 153 L188 184 Z" fill="#075D6A"/><path d="M36 160 L188 222 L188 155 L128 126 L128 153 L92 139 L36 160 Z" fill="url(#cyan)" stroke="#9AFBFA" stroke-width="2" opacity=".95"/></g>
+<text x="320" y="173" fill="#F4F5F7" font-family="Arial, Helvetica, sans-serif" font-size="94" font-weight="700" letter-spacing="8">SCENEVIZ</text>
+<text x="326" y="232" fill="#16C5D0" font-family="Arial, Helvetica, sans-serif" font-size="25" letter-spacing="10">IDEAS INTO MOVING WORLDS.</text>
+<text x="326" y="302" fill="#818996" font-family="Arial, Helvetica, sans-serif" font-size="15" letter-spacing="3">PROPOSED CONCEPT LOGO • V1.0</text></svg>

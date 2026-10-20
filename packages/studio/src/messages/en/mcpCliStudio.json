@@ -1,0 +1,31 @@
+{
+  "hero": {
+    "badge": "For developers & AI agents",
+    "title": "MCP & CLI",
+    "description": "Use Sceneviz from your terminal, your IDE, or any MCP-compatible assistant. Generate cinematic images, videos, and audio across 500+ models — without leaving your workflow."
+  },
+  "quickStart": {
+    "sectionLabel": "Quick start",
+    "steps": {
+      "installCli": "Install the CLI",
+      "signIn": "Sign in"
+    }
+  },
+  "features": {
+    "cli": {
+      "description": "Generate images, videos, and audio from the terminal across 14+ AI models. Dual interface — colored human output plus JSON for agents (--output-json, --jq filtering). Async workflows, file uploads, credit tracking."
+    },
+    "mcp": {
+      "description": "Connect Claude, Cursor, Windsurf, and any MCP-compatible assistant to 500+ generative models. Hosted endpoint — no install. 19 structured tools with input/output schemas, async polling, and account management."
+    }
+  },
+  "viewDocs": "View docs",
+  "examples": {
+    "sectionLabel": "Examples",
+    "imageGeneration": "Image generation",
+    "textToVideo": "Text-to-video",
+    "audioCreation": "Audio creation",
+    "runSkill": "Run a skill"
+  },
+  "footer": "Works with Claude, Cursor, Windsurf, and Gemini CLI"
+}

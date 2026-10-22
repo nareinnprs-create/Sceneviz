@@ -12,6 +12,13 @@ const ROUTES = [
   '/studio/body-swap',
   '/studio/clipping',
   '/studio/motion-control',
+  '/studio/cinema',
+  '/studio/marketing',
+  '/studio/vibe-motion',
+  '/studio/agents',
+  '/studio/design-agent',
+  '/studio/apps',
+  '/studio/ai-influencer',
 ];
 
 function withAlternates(route, priority) {
@@ -31,7 +38,20 @@ function withAlternates(route, priority) {
 }
 
 export default function sitemap() {
-  return ROUTES.map((route, index) =>
+  const en = ROUTES.map((route, index) =>
     withAlternates(route, index === 0 ? 1 : route === '/studio' ? 0.9 : 0.7)
   );
+  const zh = {
+    url: `${BASE}/zh`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly',
+    priority: 1,
+    alternates: {
+      languages: {
+        en: `${BASE}/`,
+        'zh-CN': `${BASE}/zh`,
+      },
+    },
+  };
+  return [en[0], zh, ...en.slice(1)];
 }

@@ -17,7 +17,7 @@ function addSecurityHeaders(response) {
     // and other muapi subdomains that the renderer fetches directly.
     response.headers.set(
         'Content-Security-Policy',
-        "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' https://muapi.ai https://*.muapi.ai; font-src 'self' data:;"
+        "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' https://muapi.ai https://*.muapi.ai https://*.cloudfront.net https://storage.googleapis.com https://static.aiquickdraw.com https://samplelib.com https://huggingface.co https://platform.minimax.io; font-src 'self' data:;"
     );
     return response;
 }
@@ -43,11 +43,14 @@ export function middleware(request) {
         }
     }
 
-    // Plain response header carrying the locale derived from the URL path
-    // (same "set in middleware, read via headers() in the root layout"
-    // trick the main muapi client uses — see docs/localization.md).
-    const response = NextResponse.next();
-    response.headers.set('x-locale', getLocaleFromPathname(url.pathname));
+    // Plain header carrying the locale derived from the URL path.
+    // It must be set on BOTH the forwarded request (so the root layout can
+    // read it via headers()) and the response (so clients/CDNs can see it).
+    const locale = getLocaleFromPathname(url.pathname);
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-locale', locale);
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    response.headers.set('x-locale', locale);
     return addSecurityHeaders(response);
 }
 
@@ -55,6 +58,6 @@ export function middleware(request) {
 export const config = {
     matcher: [
         '/api/:path*',
-        '/((?!_next/static|_next/image|favicon.ico|__nextjs_original-stack-frame).*)',
+        '/((?!_next/static|_next/image|favicon.ico|__nextjs_original-stack-frame|icon\\.svg|apple-icon\\.png|opengraph-image\\.png|robots\\.txt|sitemap\\.txt|sitemap\\.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|xml|webmanifest|woff2?)$).*)',
     ],
 };

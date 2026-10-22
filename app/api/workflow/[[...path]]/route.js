@@ -65,7 +65,8 @@ export async function POST(request, { params }) {
         const body = await request.arrayBuffer();
         // Decode body to see what workflow_id is being sent
         try {
-            const parsed = JSON.parse(Buffer.from(body).toString('utf-8'));
+            const text = new TextDecoder().decode(body);
+            const parsed = JSON.parse(text);
             console.log(`[proxy POST] body: workflow_id=${parsed.workflow_id}, source_workflow_id=${parsed.source_workflow_id}, name=${parsed.name}`);
         } catch(e) { /* ignore decode errors */ }
 

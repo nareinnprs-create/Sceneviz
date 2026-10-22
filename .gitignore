@@ -36,3 +36,9 @@ out/
 .env
 .env.*
 !.env.example
+
+# OpenNext / Cloudflare
+.open-next/
+.wrangler/
+.wrangler-dry/
+

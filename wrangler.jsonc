@@ -25,9 +25,9 @@
     { "pattern": "sceneviz.opraiz.com", "custom_domain": true }
   ],
 
-  // Keep the workers.dev URL enabled so we can smoke-test before the custom
-  // domain is bound. Disable later if you want the custom domain only.
-  "workers_dev": true,
+  // Serve only on the custom domain. The workers.dev hostname was used for
+  // the initial smoke test and is now disabled to avoid duplicate indexing.
+  "workers_dev": false,
 
   // Structured logs + metrics in the Cloudflare dashboard.
   "observability": {

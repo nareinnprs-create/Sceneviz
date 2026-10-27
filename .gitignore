@@ -42,3 +42,8 @@ out/
 .wrangler/
 .wrangler-dry/
 
+
+# Sceneviz API worker
+api/.wrangler/
+api/.dev.vars
+

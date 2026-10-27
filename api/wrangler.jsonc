@@ -1,0 +1,32 @@
+{
+  // Opraiz API — Stage 2 backend for Sceneviz (see docs/stage2-runpod-plan.md).
+  "name": "sceneviz-api",
+
+  "main": "src/index.js",
+
+  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_date": "2025-09-01",
+
+  "routes": [{ "pattern": "api.opraiz.com", "custom_domain": true }],
+
+  "observability": { "enabled": true },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "sceneviz",
+      "database_id": "fc838baa-10c5-44ff-a607-75cfda071f74"
+    }
+  ],
+
+  // R2 media bucket — enable R2 in the Cloudflare dashboard first
+  // (Account → R2 → Enable, requires a payment method on file), then create:
+  //   npx wrangler r2 bucket create sceneviz-media
+  // and uncomment:
+  // "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "sceneviz-media" }],
+
+  // Secrets (never here): RUNPOD_API_KEY — set with `npx wrangler secret put`.
+  "vars": {
+    "DEFAULT_KEY_CREDITS": "500"
+  }
+}

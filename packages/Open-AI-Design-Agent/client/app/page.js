@@ -353,7 +353,7 @@ export default function AssistantDashboard() {
                           onMouseLeave={() => setHoveredAsset(null)}
                         >
                           <div className="w-5 h-5 rounded overflow-hidden">
-                            {att.kind === "image" ? <img src={att.url} className="w-full h-full object-cover" /> : <FiTerminal size={10} />}
+                            {att.kind === "image" ? <img src={att.url} alt={`Preview of asset ${i + 1}`} className="w-full h-full object-cover" /> : <FiTerminal size={10} />}
                           </div>
                           <span className="text-[10px] font-bold text-secondary-text">{`asset_${i+1}`}</span>
                         </div>
@@ -372,7 +372,7 @@ export default function AssistantDashboard() {
                             onMouseLeave={() => setHoveredAsset(null)}
                           >
                             <div className="w-5 h-5 rounded overflow-hidden bg-primary/10 flex items-center justify-center text-primary">
-                              {asset.kind === "image" ? <img src={asset.url} className="w-full h-full object-cover" /> : <RiSparklingLine size={10} />}
+                              {asset.kind === "image" ? <img src={asset.url} alt={`Preview of ${match}`} className="w-full h-full object-cover" /> : <RiSparklingLine size={10} />}
                             </div>
                             <span className="text-[10px] font-bold text-primary">{match}</span>
                           </div>
@@ -391,7 +391,7 @@ export default function AssistantDashboard() {
                   {hoveredAsset && (
                     <div className="absolute bottom-full left-0 mb-10 w-72 aspect-square bg-bg-card border border-divider rounded-md shadow-[0_32px_64px_-12px_rgba(0,0,0,0.2)] overflow-hidden z-[110] animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
                       {hoveredAsset.kind === "image" ? (
-                        <img src={hoveredAsset.url} className="w-full h-full object-cover" />
+                        <img src={hoveredAsset.url} alt="Preview of hovered attachment" className="w-full h-full object-cover" />
                       ) : hoveredAsset.kind === "video" ? (
                         <video src={hoveredAsset.url} className="w-full h-full object-cover" autoPlay muted loop />
                       ) : (
@@ -504,7 +504,7 @@ export default function AssistantDashboard() {
                     <div className="flex items-center -space-x-2 mr-2">
                       {attachments.map((a, i) => (
                         <div key={i} className="w-6 h-6 rounded-full border-2 border-bg-card bg-bg-page overflow-hidden shadow-sm">
-                          {a.kind === "image" ? <img src={a.url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-black"><FiTerminal size={10} className="text-white" /></div>}
+                          {a.kind === "image" ? <img src={a.url} alt={`Attached image ${i + 1}`} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center bg-black"><FiTerminal size={10} className="text-white" /></div>}
                         </div>
                       ))}
                       <button onClick={() => setAttachments([])} className="w-6 h-6 rounded-full border-2 border-bg-card bg-red-500 text-white flex items-center justify-center hover:bg-red-600 transition-colors z-10">

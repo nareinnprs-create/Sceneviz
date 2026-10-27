@@ -316,7 +316,7 @@ The Video Studio follows the same pattern:
 
 ### 🎙️ Lip Sync Studio
 
-The **Lip Sync Studio** generates audio-driven talking videos using 9 models across two input modes:
+The **Lip Sync Studio** generates audio-driven talking videos using 15 models (9 image + 6 video) across two input modes:
 
 | Mode | Trigger | Description |
 | :--- | :--- | :--- |
@@ -538,7 +538,7 @@ Lip sync jobs use the same two-step pattern: a dedicated `processLipSync()` meth
 | **Restrictions** | Platform guardrails enforced | Full creative freedom |
 | **Models** | Proprietary | 400+ open & commercial models |
 | **Multi-image input** | Limited | Up to 14 images per request |
-| **Lip sync** | No | 9 models, image & video modes |
+| **Lip sync** | No | 15 models, image & video modes |
 | **Self-hosting** | No | Yes |
 | **Customizable** | No | Fully hackable |
 | **Data privacy** | Cloud-based | Your data stays local |

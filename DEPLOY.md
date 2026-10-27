@@ -170,3 +170,87 @@ Currently `next.config.mjs` sets `images.unoptimized: true` so the build works
 without Workers bindings. To enable real optimization later, add a Cloudflare
 Images binding/loader (custom `loader` + `loaderFile`) and remove
 `unoptimized`, then re-run `npm run cf:build`.
+
+## 11. Stage 2 — switching the backend API
+
+The app currently runs against the **MuAPI** backend (the Stage 1 default).
+When the Opraiz API goes live, the backend can be repointed **without editing
+source** — but the switch is a **build-time** switch, not a runtime one.
+
+### The variable
+
+`NEXT_PUBLIC_SCENEVIZ_API_BASE_URL` controls the REST base URL
+(`API_BASE_URL`). Related overrides exist for the other endpoints:
+`NEXT_PUBLIC_SCENEVIZ_MCP_BASE_URL`, `NEXT_PUBLIC_SCENEVIZ_DOCS_URL`,
+`NEXT_PUBLIC_SCENEVIZ_CDN_BASE_URL`. The key-signup URL (`KEY_SIGNUP_URL`)
+has **no** env override yet — it changes only via its default in
+`lib/apiConfig.js`.
+
+### Why it is a build-time switch
+
+`NEXT_PUBLIC_*` variables are **inlined into the JS bundle by Next.js at
+build time**. The value baked in when `npm run cf:build` runs is the value
+the deployed Worker serves forever after. Consequently:
+
+- **Setting the var later on the Worker does nothing** — a `vars` entry in
+  `wrangler.jsonc` or the Cloudflare dashboard is a runtime variable and
+  cannot reach code that was already inlined. (The `vars` block in
+  `wrangler.jsonc` exists only as a discoverable marker; it is pinned to the
+  current default so deploying changes nothing.)
+- The switch is always: **edit the value → `npm run cf:build` →
+  `npx wrangler deploy`.**
+
+Two ways to set the value (both equivalent — pick one):
+
+```powershell
+# A. Environment variable, no source change (preferred; nothing to commit):
+$env:NEXT_PUBLIC_SCENEVIZ_API_BASE_URL = "https://<new-api-host>"
+npm run cf:build
+npx wrangler deploy
+
+# B. Change the default in source — ALL THREE copies must stay byte-identical:
+#    lib/apiConfig.js                (Next app)
+#    src/lib/apiConfig.js            (Vite app)
+#    packages/studio/src/apiConfig.js (studio package)
+```
+
+### The byte-identical invariant
+
+`lib/apiConfig.js`, `src/lib/apiConfig.js`, and `packages/studio/src/apiConfig.js`
+must remain **byte-identical**. If you edit the default in source, edit all
+three identically and verify the hashes match before and after:
+
+```powershell
+Get-FileHash -Algorithm SHA256 -LiteralPath lib\apiConfig.js,src\lib\apiConfig.js,packages\studio\src\apiConfig.js
+```
+
+### Credentials
+
+The base URL itself is not a secret, but **any API key or token must never be
+committed** — not in `wrangler.jsonc`, `.env`, or anywhere else in the repo
+(§1). Supply secrets only as build-time environment variables: set them in
+the shell before `npm run cf:build`, or store them as CI secrets in the
+pipeline. `.env` / `.env.local` are gitignored — do not force-add them.
+
+### Pre-switch checklist
+
+- [ ] `Get-FileHash` (above) shows all three files identical.
+- [ ] New base URL is set in the shell (method A) **or** all three
+      `apiConfig.js` copies were edited identically (method B).
+- [ ] No credentials in any git-tracked file (`git status` clean of `.env*`).
+- [ ] `npm run cf:build` succeeds; `npm run cf:preview` smoke-tests locally.
+- [ ] Built bundle sanity check: the new base URL appears under `.open-next/`
+      and the old `api.muapi.ai` string no longer does.
+
+### Post-switch verification
+
+Run the same route checks as §9 (`/`, `/zh`, `/studio/image`, `/agents`,
+`/icon.svg` — plus `/robots.txt` and `/sitemap.xml`; all must return `200`),
+then confirm:
+
+- **CSP header still present:** `curl.exe -sD - -o NUL "$base/"` shows the
+  `content-security-policy` header (see §9 for scope).
+- **Brand safety:** served HTML on `/`, `/zh`, and `/studio/image` contains
+  no upstream brand names or repository references (grep the HTML for the
+  known upstream identifiers).
+- **No redirect loop** (§6) and **workers.dev still 404** (§5).

@@ -79,7 +79,7 @@
       ]
     },
     "win": {
-      "icon": "public/banner.png",
+      "icon": "build/icon.ico",
       "signAndEditExecutable": false,
       "target": [
         {

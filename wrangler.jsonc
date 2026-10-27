@@ -18,6 +18,27 @@
   // Keep this current with the Workers runtime; must be >= your build date.
   "compatibility_date": "2025-09-01",
 
+  // Stage 2 flip point — backend API base URL.
+  //
+  // This is a NEXT_PUBLIC_* variable: Next.js INLINES its value into the
+  // client/server bundle at BUILD time. This Worker-level `vars` entry is a
+  // discoverability marker only — editing it alone does NOT repoint the app.
+  // The real switch is: set the value in the shell (or an untracked
+  // .env.local) BEFORE building, then rebuild and redeploy:
+  //   $env:NEXT_PUBLIC_SCENEVIZ_API_BASE_URL = "https://<new-api-host>"
+  //   npm run cf:build
+  //   npx wrangler deploy
+  // (Alternatively change DEFAULT_API_BASE_URL in lib/apiConfig.js and its
+  // two byte-identical siblings — see DEPLOY.md "Stage 2" section.)
+  //
+  // The value below is the current Stage 1 default (MuAPI, verbatim from
+  // lib/apiConfig.js), so deploying today changes nothing. NEVER put API
+  // keys or credentials here — this file is committed; supply secrets as
+  // build-time env vars instead (DEPLOY.md).
+  "vars": {
+    "NEXT_PUBLIC_SCENEVIZ_API_BASE_URL": "https://api.muapi.ai"
+  },
+
   // Route to the production custom domain. A bare hostname (no trailing /*)
   // is correct here: wrangler manages the DNS record + certificate when
   // `custom_domain` is true.

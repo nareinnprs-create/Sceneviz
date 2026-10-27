@@ -380,7 +380,7 @@ const EditAgent = ({ useUser, usedIn }) => {
             <IoTrashOutline className="w-4 h-4" />
           </button>
           <Link 
-            href="/docs/agents"
+            href="https://muapi.ai/docs"
             target="_blank"
             className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-secondary-bg border border-gray-100 dark:border-divider rounded-lg text-xs font-bold text-blue-600 dark:text-primary hover:bg-blue-50 dark:hover:bg-primary-bg transition-all active:scale-95 shadow-sm"
           >

@@ -945,7 +945,7 @@ export default function CreativeCanvas({
       } else {
         fetchSessions();
         if (id === sessionId) {
-          router.push("/canvas");
+          router.push("/studio/design-agent");
         }
       }
     } catch (err) {
@@ -1328,7 +1328,7 @@ export default function CreativeCanvas({
             </div>
             <div className="flex items-center gap-1">
               <Link 
-                href="https://muapi.ai/docs/design-agent-api" 
+                href="https://muapi.ai/docs" 
                 target="_blank"
                 className="p-1.5 hover:bg-bg-page hover:text-primary-text transition-colors rounded text-secondary-text"
                 title="API Docs"
@@ -1339,7 +1339,7 @@ export default function CreativeCanvas({
                 <button
                   onClick={() => {
                     if (inEmbedMode) setActiveEmbedSession(null);
-                    else router.push("/canvas");
+                    else router.push("/studio/design-agent");
                   }}
                   className="p-1.5 hover:bg-bg-page hover:text-primary-text transition-colors rounded text-secondary-text"
                   title="New Session"
@@ -1691,7 +1691,7 @@ export default function CreativeCanvas({
                             <h3 className="text-[12px] font-bold text-primary-text uppercase tracking-tight">Expert Skills</h3>
                           </div>
                           <Link 
-                            href="https://muapi.ai/docs/design-agent-api"
+                            href="https://muapi.ai/docs"
                             target="_blank" 
                             className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
                           >

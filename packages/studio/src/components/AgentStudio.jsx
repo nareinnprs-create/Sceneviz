@@ -174,11 +174,10 @@ export default function AgentStudio({ apiKey, locale = "en" }) {
   const [error, setError] = useState(null);
 
   // Deep-link routing. `router.push('/agents/...')` below is a real full navigation
-  // away from the studio shell on muapi.ai (BYOK/dashboard) — AiAgent's own standalone
-  // pages handle it there, unaffected. On a white-label custom domain the same push is
-  // transparently rewritten by middleware.js back to this same catch-all shell route, so
-  // reading it back out via useParams() here drives an inline view instead of navigating
-  // anywhere — see docs/whitelabel_plan.md for the full routing writeup.
+  // to the standalone /agents/* app routes (index, create, edit, chat) — those pages
+  // are served by the same deployment, so this is a normal cross-app navigation, not a
+  // rewrite. The inline view here only reads studio-tab params (/studio/agents/...).
+  // NOTE: middleware.js does NOT rewrite /agents/* back into this shell.
   const tabSegments = Array.isArray(params?.tab) ? params.tab : [];
   const agentsIdx = tabSegments.indexOf("agents");
   const urlAgentSlug = agentsIdx === -1 ? null : tabSegments[agentsIdx + 1] || null;

@@ -4,6 +4,7 @@ export default function robots() {
       {
         userAgent: '*',
         allow: '/',
+        disallow: '/api/',
       },
     ],
     sitemap: 'https://sceneviz.opraiz.com/sitemap.xml',

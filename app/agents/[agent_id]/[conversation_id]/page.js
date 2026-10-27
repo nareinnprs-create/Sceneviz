@@ -15,6 +15,10 @@ export async function generateMetadata({ params }) {
     alternates: {
       canonical: false,
     },
+    robots: {
+      index: false,
+      follow: false,
+    },
   };
 }
 

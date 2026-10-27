@@ -5,6 +5,10 @@ export const metadata = {
   alternates: {
     canonical: false,
   },
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default function WorkflowPage() {

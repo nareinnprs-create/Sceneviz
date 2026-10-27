@@ -33339,7 +33339,7 @@ export const audioModels = [
           "Afrikaans_male_1_v1",
           "Afrikaans_female_1_v1"
         ],
-        "description": "Desired voice ID. Use a voice ID you have trained (https://sceneviz.opraiz.com/playground/minimax-voice-clone), or one of the following system voice IDs",
+        "description": "Desired voice ID. Use a voice ID you have trained (https://sceneviz.opraiz.com/studio/audio), or one of the following system voice IDs",
         "type": "string",
         "typing": true,
         "title": "Voice ID",
@@ -33998,7 +33998,7 @@ export const audioModels = [
           "Afrikaans_male_1_v1",
           "Afrikaans_female_1_v1"
         ],
-        "description": "Desired voice ID. Use a voice ID you have trained (https://sceneviz.opraiz.com/playground/minimax-voice-clone), or one of the following system voice IDs",
+        "description": "Desired voice ID. Use a voice ID you have trained (https://sceneviz.opraiz.com/studio/audio), or one of the following system voice IDs",
         "type": "string",
         "typing": true,
         "title": "Voice ID",

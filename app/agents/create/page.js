@@ -2,6 +2,13 @@ import { cookies } from "next/headers";
 import AgentCreateClient from "./AgentCreateClient";
 import { API_BASE_URL } from '@/lib/apiConfig';
 
+export const metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
+
 const BASE_URL = API_BASE_URL;
 
 async function fetchUserData(apiKey) {

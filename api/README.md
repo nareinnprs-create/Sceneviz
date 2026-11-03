@@ -40,4 +40,14 @@ Raw key is printed once; only the SHA-256 hash is stored.
 | POST | `/app/upload` | multipart `file`+`key`, header `x-upload-token` → 204 |
 | POST | `/api/v1/upload_file` | same, returns `{url, file_url}` |
 | GET | `/media/{key}` | public read |
-| POST | `/api/v1/{model-id}` | 501 until Phase B |
+
+## Endpoints (Phase B — GPU bridge)
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/api/v1/flux-dev-image` | submit → RunPod; `{status:'submitted', request_id, id}` |
+| POST | `/api/v1/flux-schnell-image` | same |
+| POST | `/api/v1/sdxl-image` | same |
+| GET | `/api/v1/predictions/{request_id}/result` | RunPod status → contract vocabulary; `{status, output, outputs}` |
+| POST | `/api/v1/{other model-id}` | 501 until mapped in `src/modelMap.js` |
+
+Phase B details: model map in `src/modelMap.js` (endpoint env `RUNPOD_ENDPOINT_ID_IMAGE`, credit cost, input translation); RunPod calls in `src/gpu.js`; per-key rate limit 60 req/60s on submits only (429); credits debited on successful submit, **no refund on failed jobs yet**. Requires `RUNPOD_API_KEY` secret and `RUNPOD_ENDPOINT_ID_IMAGE` var in `wrangler.jsonc`.

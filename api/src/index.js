@@ -1,5 +1,5 @@
 /**
- * Sceneviz API — Stage 2 backend (Phase A shell).
+ * Sceneviz API — Stage 2 backend (Phase A shell + Phase B GPU bridge).
  * Runs on Cloudflare Workers at https://api.opraiz.com.
  *
  * Contract: docs/stage2-api-contract.md — response shapes follow the
@@ -8,6 +8,9 @@
  * Auth: BYOK. Keys are issued by api/issue-key.mjs; only SHA-256 hashes are
  * stored. Clients send `x-api-key`. 401 = missing/unknown key, 403 = disabled.
  */
+
+import { MODEL_MAP } from "./modelMap.js";
+import { submitJob, getJob } from "./gpu.js";
 
 const JSON_HDR = { "content-type": "application/json; charset=utf-8" };
 
@@ -30,6 +33,7 @@ const err401 = (m = "Not authenticated") => json({ detail: m }, 401);
 const err403 = (m = "Not authorized") => json({ detail: { error: m } }, 403);
 const err404 = (m = "Not found") => json({ detail: m }, 404);
 const err501 = (m) => json({ detail: { error: m } }, 501);
+const err503 = (m) => json({ detail: { error: m } }, 503);
 
 async function sha256Hex(text) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
@@ -44,6 +48,12 @@ function uuid() {
 function mediaPath(key) {
   return `/media/${key}`;
 }
+
+// Phase B GPU bridge: per-key fixed-window rate limit on generation submits.
+// shortcut: rate rows accumulate one per active key-minute, no cleanup job —
+// table stays tiny; add a GC pass if usage grows unbounded.
+const RATE_WINDOW_MS = 60000;
+const RATE_LIMIT_PER_WINDOW = 60;
 
 export default {
   async fetch(request, env) {
@@ -163,17 +173,138 @@ async function route(request, env, url, path, key) {
     if (model === "predictions" || model === "upload_file" || model === "account" || model === "models") {
       return err404();
     }
-    return err501(
-      `Model '${model}' is not yet served by the Opraiz API (Phase A). ` +
-        `Generation comes online in Phase B — see docs/stage2-runpod-plan.md.`
-    );
+    return await handleGenerate(request, env, key, model);
   }
 
-  if (method === "GET" && /^\/api\/v1\/predictions\/[^/]+\/result$/.test(path)) {
-    return err501("Job status is not yet served by the Opraiz API (Phase A).");
+  const pollMatch = path.match(/^\/api\/v1\/predictions\/([^/]+)\/result$/);
+  if (method === "GET" && pollMatch) {
+    return await handleResult(env, key, pollMatch[1]);
   }
 
   return err404();
+}
+
+/* ------------------------------------------------------------- generation */
+
+async function handleGenerate(request, env, key, model) {
+  const cfg = MODEL_MAP[model];
+  if (!cfg) {
+    return err501(
+      `Model '${model}' is not yet served by the Opraiz API. ` +
+        `Currently served: ${Object.keys(MODEL_MAP).join(", ")} — more come online in Phase B+ ` +
+        `(see docs/stage2-runpod-plan.md).`
+    );
+  }
+
+  const endpointId = env[cfg.endpointEnv];
+  if (!endpointId) return err503("GPU endpoint not provisioned yet");
+
+  let input;
+  try {
+    input = cfg.translate(await request.json());
+  } catch {
+    return err400("Expected a JSON body");
+  }
+  if (!input.prompt) return err400("Field 'prompt' is required");
+
+  const cost = cfg.costCredits * input.num_outputs; // catalog: each image charges separately
+  if ((key.credits || 0) < cost) return err403("Insufficient credits");
+
+  // Rate limit after the free checks, before any GPU spend.
+  if (!(await checkRateLimit(env, key.id))) {
+    return json({ detail: { error: "Rate limit exceeded" } }, 429);
+  }
+
+  let job;
+  try {
+    job = await submitJob(env, endpointId, input);
+  } catch (e) {
+    return json({ detail: { error: `GPU submit failed: ${String(e?.message || e)}` } }, 502);
+  }
+  if (!job?.id) return json({ detail: { error: "RunPod did not return a job id" } }, 502);
+
+  // shortcut: no refund on failed jobs, add refund when metering lands
+  await env.DB.batch([
+    env.DB.prepare("UPDATE keys SET credits = credits - ? WHERE id = ?").bind(cost, key.id),
+    env.DB.prepare("INSERT INTO usage (id, key_id, model, credits, job_id) VALUES (?, ?, ?, ?, ?)").bind(
+      uuid(),
+      key.id,
+      model,
+      cost,
+      job.id
+    ),
+  ]);
+
+  // Contract §3.1: the client reads request_id || id — return both.
+  return json({ status: "submitted", request_id: job.id, id: job.id });
+}
+
+/**
+ * Poll: translate RunPod status into the contract vocabulary (§3.1, exact,
+ * case-insensitive). Unknown job → 404. Non-terminal → "IN_PROGRESS"
+ * (client keeps polling anything outside the success/failure sets).
+ */
+async function handleResult(env, key, jobId) {
+  const usage = await env.DB.prepare("SELECT model FROM usage WHERE job_id = ?").bind(jobId).first();
+  if (!usage) return err404("Unknown request id");
+
+  const cfg = MODEL_MAP[usage.model];
+  const endpointId = cfg && env[cfg.endpointEnv];
+  if (!endpointId) return err503("GPU endpoint not provisioned yet");
+
+  let job;
+  try {
+    job = await getJob(env, endpointId, jobId);
+  } catch (e) {
+    return json({ detail: { error: `GPU status failed: ${String(e?.message || e)}` } }, 502);
+  }
+
+  const rp = String(job.status || "").toUpperCase();
+  let status = "IN_PROGRESS";
+  let error;
+  if (rp === "COMPLETED") {
+    status = "completed";
+  } else if (rp === "FAILED" || rp === "TIMED_OUT") {
+    status = "failed";
+    error = (typeof job.output === "string" && job.output) || `RunPod job ${rp.toLowerCase()}`;
+  } else if (rp === "CANCELLED") {
+    status = "cancelled";
+    error = "Job was cancelled";
+  }
+
+  const outputs = extractOutputs(job.output);
+  // Client extraction order: outputs[0] || url || output.url → output covers all three.
+  return json({
+    status,
+    request_id: jobId,
+    id: jobId,
+    output: outputs[0] || null,
+    outputs,
+    ...(error ? { error } : {}),
+  });
+}
+
+function extractOutputs(out) {
+  if (Array.isArray(out)) return out.filter((u) => typeof u === "string");
+  if (typeof out === "string") return out ? [out] : [];
+  if (out && typeof out === "object") {
+    const url = out.image_url || out.url;
+    return typeof url === "string" ? [url] : [];
+  }
+  return [];
+}
+
+/** Fixed-window per-key counter; returns true when the request may proceed. */
+async function checkRateLimit(env, keyId) {
+  const windowStart = Math.floor(Date.now() / RATE_WINDOW_MS) * RATE_WINDOW_MS;
+  const row = await env.DB.prepare(
+    `INSERT INTO rate (key_id, window_start, count) VALUES (?, ?, 1)
+     ON CONFLICT (key_id, window_start) DO UPDATE SET count = count + 1
+     RETURNING count`
+  )
+    .bind(keyId, windowStart)
+    .first();
+  return (row?.count || 0) <= RATE_LIMIT_PER_WINDOW;
 }
 
 /* ---------------------------------------------------------------- uploads */

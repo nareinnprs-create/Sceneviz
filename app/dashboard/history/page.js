@@ -87,7 +87,7 @@ export default function DashboardHistoryPage() {
                   {showThumb ? (
                     <img
                       src={thumb}
-                      alt={`${item.model || 'Generation'} output`}
+                      alt={`${item.model || t('history.unknownModel')} ${t('history.output')}`}
                       loading="lazy"
                       className="h-16 w-16 flex-shrink-0 rounded-lg object-cover"
                     />

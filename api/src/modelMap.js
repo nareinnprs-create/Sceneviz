@@ -163,8 +163,9 @@ const SEEDANCE_I2V_PARAMS = [
 ];
 
 /**
- * credit costs flagged for pricing review (video 10 s / 1080p variants may
- * exceed provider cost at the band ceiling — see README).
+ * Credit costs come from the pricing engine (src/pricing.js): upstream cost ×
+ * 2.4 markup, computed at import so /models, estimates and charges can never
+ * drift apart. Entries without an upstream entry keep their static value.
  */
 export const MODEL_MAP = {
   // --- images -------------------------------------------------------------
@@ -312,8 +313,14 @@ export const MODEL_MAP = {
   },
 };
 
+// Pricing engine overrides the static costs above (see src/pricing.js).
+import { baseCredits } from "./pricing.js";
+for (const [id, cfg] of Object.entries(MODEL_MAP)) {
+  cfg.costCredits = baseCredits(id, cfg.costCredits);
+}
+
 /**
- * Credit cost for a request — the single formula generateCore charges with and
+ * Credit cost for a request - the single formula generateCore charges with and
  * the /workflow cost endpoints quote: per-image tiers charge num_images
  * (clamped 1-2), video tiers scale with duration (anchored at the 5s base).
  */

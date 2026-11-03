@@ -121,8 +121,8 @@ export default function DashboardBillingPage() {
                 </p>
                 <p className="mt-1 text-xs text-secondary">
                   {t('billing.images', {
-                    a: Math.floor(tier.credits / 4).toLocaleString(),
-                    b: Math.floor(tier.credits / 2).toLocaleString(),
+                    a: Math.floor(tier.credits / 10).toLocaleString(),
+                    b: Math.floor(tier.credits / 4).toLocaleString(),
                   })}
                 </p>
                 <button

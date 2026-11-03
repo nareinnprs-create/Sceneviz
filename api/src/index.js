@@ -182,8 +182,9 @@ async function route(request, env, url, path, auth) {
     return json(modelCatalog());
   }
 
-  // --- uploads (require the MEDIA R2 binding — enable R2 first) ----------
-  if (!env.MEDIA && (path === "/app/get_file_upload_url" || path === "/app/upload" || path === "/api/v1/upload_file")) {
+  // --- uploads (object storage: R2 when enabled, Workers KV interim) ------
+  const media = env.MEDIA || env.MEDIA_KV ? "available" : null;
+  if (!media && (path === "/app/get_file_upload_url" || path === "/app/upload" || path === "/api/v1/upload_file")) {
     return err501("Object storage is not enabled yet — enable R2 in the Cloudflare dashboard.");
   }
 
@@ -213,15 +214,25 @@ async function route(request, env, url, path, auth) {
   }
 
   if (method === "GET" && path.startsWith("/media/")) {
-    if (!env.MEDIA) return err501("Object storage is not enabled yet.");
     const objectKey = decodeURIComponent(path.slice("/media/".length));
-    const obj = await env.MEDIA.get(objectKey);
-    if (!obj) return err404();
-    const headers = new Headers(CORS);
-    obj.writeHttpMetadata(headers);
-    headers.set("etag", obj.httpEtag);
-    headers.set("cache-control", "public, max-age=31536000, immutable");
-    return new Response(obj.body, { status: 200, headers });
+    if (env.MEDIA) {
+      const obj = await env.MEDIA.get(objectKey);
+      if (!obj) return err404();
+      const headers = new Headers(CORS);
+      obj.writeHttpMetadata(headers);
+      headers.set("etag", obj.httpEtag);
+      headers.set("cache-control", "public, max-age=31536000, immutable");
+      return new Response(obj.body, { status: 200, headers });
+    }
+    if (env.MEDIA_KV) {
+      const val = await env.MEDIA_KV.getWithMetadata(objectKey, { type: "arrayBuffer" });
+      if (!val || !val.value) return err404();
+      const headers = new Headers(CORS);
+      headers.set("content-type", val.metadata?.contentType || "application/octet-stream");
+      headers.set("cache-control", "public, max-age=31536000, immutable");
+      return new Response(val.value, { status: 200, headers });
+    }
+    return err501("Object storage is not enabled yet.");
   }
 
   // --- generation (Phase B) ---------------------------------------------
@@ -242,7 +253,7 @@ async function route(request, env, url, path, auth) {
 
   const pollMatch = path.match(/^\/api\/v1\/predictions\/([^/]+)\/result$/);
   if (method === "GET" && pollMatch) {
-    return await handleResult(env, key, pollMatch[1]);
+    return await handleResult(request, env, key, pollMatch[1]);
   }
 
   return err404();
@@ -551,7 +562,7 @@ async function generateCore(env, key, model, body) {
  * case-insensitive). Unknown job → 404. Non-terminal → "IN_PROGRESS"
  * (client keeps polling anything outside the success/failure sets).
  */
-async function handleResult(env, key, jobId) {
+async function handleResult(request, env, key, jobId) {
   const usage = await env.DB.prepare("SELECT model FROM usage WHERE job_id = ?").bind(jobId).first();
   if (!usage) return err404("Unknown request id");
 
@@ -579,10 +590,12 @@ async function handleResult(env, key, jobId) {
     error = "Job was cancelled";
   }
 
-  const outputs = extractOutputs(job.output);
+  let outputs = extractOutputs(job.output);
   // Record terminal state on the history row (matched by job_id; re-polls are
   // idempotent — same values rewritten).
   if (status !== "IN_PROGRESS") {
+    // Persist data-URI outputs to object storage → hosted /media/{key} URLs.
+    outputs = await persistOutputs(env, jobId, outputs, new URL(request.url).origin);
     await env.DB.prepare("UPDATE generations SET status = ?, output_urls_json = ? WHERE job_id = ?")
       .bind(status, JSON.stringify(outputs), jobId)
       .run();
@@ -626,9 +639,9 @@ async function checkRateLimit(env, keyId) {
 /* ---------------------------------------------------------------- uploads */
 
 /**
- * Phase A upload path: multipart POST straight into the R2 MEDIA binding.
- * (Contract note: R2 presigned-POST support is not assumed; the Worker is the
- * upload intermediary. Public read is via GET /media/{key}.)
+ * Phase A upload path: multipart POST into object storage (R2 MEDIA binding
+ * when enabled, Workers KV MEDIA_KV interim). The Worker is the upload
+ * intermediary — public read is via GET /media/{key}.
  */
 async function handleUpload(request, env) {
   const token = request.headers.get("x-upload-token") || "";
@@ -643,8 +656,43 @@ async function handleUpload(request, env) {
   const objectKey = String(form.get("key") || `uploads/${uuid()}`);
   if (!file || typeof file === "string") return err400("Expected multipart field 'file'");
 
-  await env.MEDIA.put(objectKey, file, {
-    httpMetadata: { contentType: file.type || "application/octet-stream" },
-  });
+  const contentType = file.type || "application/octet-stream";
+  if (env.MEDIA) {
+    await env.MEDIA.put(objectKey, file, { httpMetadata: { contentType } });
+  } else if (env.MEDIA_KV) {
+    await env.MEDIA_KV.put(objectKey, await file.arrayBuffer(), { metadata: { contentType } });
+  } else {
+    return err501("Object storage is not enabled yet.");
+  }
   return new Response(null, { status: 204, headers: { ...CORS, "x-stored-key": objectKey } });
+}
+
+/**
+ * Persist data-URI outputs (worker-sdxl returns base64 URIs) to object storage
+ * and rewrite them as hosted /media/{key} URLs. Idempotent per job: only
+ * outputs that still start with data: are converted.
+ */
+async function persistOutputs(env, jobId, outputs, origin) {
+  const store = env.MEDIA || env.MEDIA_KV;
+  if (!store) return outputs;
+  const out = [];
+  let n = 0;
+  for (const url of outputs) {
+    if (typeof url === "string" && url.startsWith("data:")) {
+      const key = `outputs/${jobId}/${n++}.png`;
+      const commaIdx = url.indexOf(",");
+      const meta = url.slice(5, commaIdx); // e.g. image/png;base64
+      const contentType = (meta.split(";")[0] || "image/png").trim();
+      const buf = Buffer.from(url.slice(commaIdx + 1), "base64");
+      if (env.MEDIA) {
+        await store.put(key, buf, { httpMetadata: { contentType } });
+      } else {
+        await env.MEDIA_KV.put(key, buf, { metadata: { contentType } });
+      }
+      out.push(`${origin}/media/${key}`);
+    } else {
+      out.push(url);
+    }
+  }
+  return out;
 }

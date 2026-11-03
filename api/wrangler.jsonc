@@ -24,6 +24,12 @@
   //   npx wrangler r2 bucket create sceneviz-media
   // and uncomment:
   // "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "sceneviz-media" }],
+  //
+  // Interim media store until R2 is enabled: Workers KV (25 MiB/value,
+  // writes visible immediately at the writing edge). Same keys as R2 paths.
+  "kv_namespaces": [
+    { "binding": "MEDIA_KV", "id": "d17b109b32554632a34e5ea8f6665b7d" }
+  ],
 
   // Secrets (never here): RUNPOD_API_KEY — set with `npx wrangler secret put`.
   "vars": {

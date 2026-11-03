@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
+import { CDN_BASE_URL } from "@/lib/apiConfig";
 import {
   FiSend, FiImage, FiTerminal, FiSearch,
   FiZap, FiLayout, FiUpload,
@@ -675,7 +676,7 @@ export default function CreativeCanvas({
       });
 
       // 3. Final URL
-      const uploadedUrl = `https://cdn.muapi.ai/${fields.key}`;
+      const uploadedUrl = `${CDN_BASE_URL}/${fields.key}`;
 
       // 4. Register as a real session asset so the agent can address it as asset_N.
       const kind = file.type?.startsWith("video/") ? "video"

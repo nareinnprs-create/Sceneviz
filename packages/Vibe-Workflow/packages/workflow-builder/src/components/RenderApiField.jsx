@@ -4,6 +4,7 @@ import React, { useLayoutEffect, useRef, useState } from "react";
 import { FaAngleDown } from "react-icons/fa6";
 import { FiUpload } from "react-icons/fi";
 import { toast } from "react-hot-toast";
+import { CDN_BASE_URL } from "@/lib/apiConfig";
 import AudioPlayer from "./AudioPlayer";
 import { IoCloudUploadOutline } from "react-icons/io5";
 import { Handle, Position } from "reactflow";
@@ -99,7 +100,7 @@ const RenderApiField = ({ fieldName, meta, idx, formValues, setFormValues, handl
         }
       })
       .then(() => {
-        const uploadedUrl = `https://cdn.muapi.ai/${fields.key}`;
+        const uploadedUrl = `${CDN_BASE_URL}/${fields.key}`;
         setFormValues((prev) => { 
           const current = prev[field];
           const updatedValue = fieldSchema.type === 'array'

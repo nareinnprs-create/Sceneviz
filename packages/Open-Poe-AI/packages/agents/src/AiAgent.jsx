@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
+import { CDN_BASE_URL } from "@/lib/apiConfig";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { IoSend, IoChevronBack, IoColorPalette, IoAdd, IoHeart, IoHeartOutline, IoChatbubbleEllipsesSharp } from "react-icons/io5";
@@ -434,7 +435,7 @@ const ChatPage = ({
           setUploadProgress(percent);
         }
       });
-      const prefix = "https://cdn.muapi.ai/";
+      const prefix = `${CDN_BASE_URL}/`;
       const uploadedUrl = prefix + fields.key;
       setAttachments(prev => [...prev, uploadedUrl]);
     } catch (err) {

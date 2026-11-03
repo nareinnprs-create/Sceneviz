@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { toast } from "react-hot-toast";
+import { CDN_BASE_URL } from "@/lib/apiConfig";
 import { FiUpload } from "react-icons/fi";
 import axios from "axios";
 import AudioPlayer from "./AudioPlayer";
@@ -67,7 +68,7 @@ const UploadNode = ({ id, data, formValues, setFormValues, selectedModel, loadin
         }
       })
       .then(() => {
-        const prefix = "https://cdn.muapi.ai/";
+        const prefix = `${CDN_BASE_URL}/`;
         const uploadedUrl = prefix + fields.key;
         setFormValues(prev => ({ ...prev, [type]: uploadedUrl }));
 

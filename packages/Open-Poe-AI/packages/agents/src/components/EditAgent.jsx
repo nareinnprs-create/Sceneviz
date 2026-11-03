@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import axios from "axios";
+import { CDN_BASE_URL } from "@/lib/apiConfig";
 import { IoChevronBack, IoPencilOutline, IoShareOutline, IoTrashOutline, IoCloseOutline, IoImageOutline, IoSparklesOutline, IoChatbubblesOutline } from "react-icons/io5";
 import { BiLoaderAlt } from "react-icons/bi";
 import { RiRobot2Fill } from "react-icons/ri";
@@ -217,7 +218,7 @@ const EditAgent = ({ useUser, usedIn }) => {
           setUploadProgress(percent);
         }
       });
-      const prefix = usedIn === "vadoo" ? "https://d3adwkbyhxyrtq.cloudfront.net/": "https://cdn.muapi.ai/";
+      const prefix = usedIn === "vadoo" ? "https://d3adwkbyhxyrtq.cloudfront.net/": `${CDN_BASE_URL}/`;
       const uploadedUrl = `${prefix}${fields.key}`;
       setFormData(prev => ({ ...prev, icon_url: uploadedUrl }));
       toast.success("Profile image updated");

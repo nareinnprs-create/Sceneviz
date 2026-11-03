@@ -182,9 +182,8 @@ source** — but the switch is a **build-time** switch, not a runtime one.
 `NEXT_PUBLIC_SCENEVIZ_API_BASE_URL` controls the REST base URL
 (`API_BASE_URL`). Related overrides exist for the other endpoints:
 `NEXT_PUBLIC_SCENEVIZ_MCP_BASE_URL`, `NEXT_PUBLIC_SCENEVIZ_DOCS_URL`,
-`NEXT_PUBLIC_SCENEVIZ_CDN_BASE_URL`. The key-signup URL (`KEY_SIGNUP_URL`)
-has **no** env override yet — it changes only via its default in
-`lib/apiConfig.js`.
+`NEXT_PUBLIC_SCENEVIZ_CDN_BASE_URL`, and `NEXT_PUBLIC_SCENEVIZ_KEY_SIGNUP_URL`
+(the key-signup URL, `KEY_SIGNUP_URL`).
 
 ### Why it is a build-time switch
 

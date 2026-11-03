@@ -193,6 +193,52 @@ any MCP-compatible tool once available.
 
 ---
 
+## Billing (buy credits)
+
+Credits are bought from the dashboard. The API surface:
+
+### GET /billing/packs
+
+No auth. Returns the purchasable packs and whether Cashfree (India/UPI) is enabled.
+
+```json
+{
+  "packs": [
+    { "id": "credits500", "credits": 500, "priceUSD": "$2.99", "priceINR": "₹249", "gateways": ["dodo", "cashfree"] }
+  ],
+  "cashfreeAvailable": false
+}
+```
+
+### POST /billing/checkout
+
+Dashboard session auth (`Authorization: Bearer <session_token>`; API keys get `401` — buying
+is a dashboard action). Body `{ "pack": "credits500", "gateway": "dodo" }` → Dodo checkout
+session → `{ "checkout_url": "https://checkout.dodopayments.com/…" }`. Redirect the browser
+to `checkout_url`; after payment Dodo returns the user to
+`https://sceneviz.opraiz.com/dashboard/billing?paid=1`. Unknown pack/gateway → `400`;
+`gateway: "cashfree"` → `503 {"detail":{"error":"Cashfree not configured yet"}}` until the
+Cashfree order flow is enabled.
+
+### Webhooks (public, signature-verified)
+
+- `POST /webhooks/dodo` — Svix signature scheme: HMAC-SHA256 (base64) over
+  `{webhook-id}.{webhook-timestamp}.{raw body}` with the webhook signing secret, checked
+  against every `v1,<signature>` entry in the `webhook-signature` header. Timestamps older
+  than 5 minutes are rejected (`400`). Grants credits on `payment.succeeded` (and
+  `checkout.completed`) using `metadata.account_id` / `metadata.credits` set at checkout
+  creation; unknown event types → `200 {received:true, ignored:true}`; a payment id already
+  processed → `200 {received:true, duplicate:true}` (no double credit).
+- `POST /webhooks/cashfree` — base64 HMAC-SHA256 of the raw body verified against the
+  `x-webhook-signature` header. Grants credits on `payment.captured` / order status `PAID`
+  from the order metadata (`account_id`, `credits`).
+
+Both endpoints **fail closed**: while `DODO_WEBHOOK_SECRET` / `CASHFREE_WEBHOOK_SECRET` are
+unset they answer `503 {"detail":{"error":"Webhook not configured"}}` before reading or
+parsing anything. Every processed payment is stored in `payments` (unique per gateway
+payment id) with an audit row in `credit_ledger`; grants increment the account balance and
+all of that account's active API keys.
+
 ## Roadmap (rolling out with the Phase B auth surface)
 
 These endpoints are being added and are not yet live as of November 2026:

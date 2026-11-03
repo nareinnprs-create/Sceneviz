@@ -52,8 +52,15 @@ generation test + UI metadata. Target **15–25 genuinely working models** at re
   cookie; keys scoped to accounts. No third-party auth provider needed for v1.
 - **Self-serve keys:** dashboard at `sceneviz.opraiz.com/dashboard` — create/revoke keys,
   see balance + usage. `KEY_SIGNUP_URL` → `/dashboard` (kills the homepage placeholder).
-- **Payments:** prepaid credits. Provider decision needed (see §5). Webhook → D1 ledger.
-  Credit costs per model already in `modelMap` (extend per new model).
+- **Payments:** prepaid credits via **two gateways** —
+  - **Cashfree** (India: UPI, cards, netbanking)
+  - **Dodo Payments** (international; merchant-of-record — handles tax/compliance)
+  Checkout: Worker creates a session (amount + account_id metadata) → user pays on
+  hosted page → signed webhook (`/webhooks/cashfree`, `/webhooks/dodo`) verified →
+  D1 `credit_ledger` insert + `accounts.credits` increment. Idempotent by payment id.
+  Provider keys needed at M3: `CASHFREE_APP_ID` + `CASHFREE_SECRET_KEY` + webhook secret;
+  `DODO_API_KEY` + webhook secret. Webhook route can be built and signature-verified
+  before keys arrive (tests use a mock signature path).
 - **Admin:** tiny internal CLI/dashboard for refunds, bans, credit grants.
 - This workstream replaces the BYOK flow — the last muapi-shaped UX.
 
@@ -180,7 +187,7 @@ RunPod spend is usage-based; caps protect against abuse (rate limit + credits + 
 
 | # | Decision | Options | Recommendation |
 |---|---|---|---|
-| D1 | Payment provider | Stripe (intl cards) / Razorpay (India + UPI) / both | Razorpay first if India-first, else Stripe |
+| D1 | Payment provider | ~~Stripe/Razorpay~~ → **Cashfree (India) + Dodo Payments (intl)** — decided | build both at M3; Dodo is merchant-of-record so no separate tax handling |
 | D2 | Auth | email+password D1 (rec) / magic-link-only / OAuth (Google) | email+password + optional Google later |
 | D3 | Video models first pick | WAN 2.2 / LTX / Hunyuan / Sora-class via available workers | WAN 2.2 (quality/cost balance) |
 | D4 | GPU budget cap | hard monthly ceiling in RunPod dashboard + per-endpoint workersMax | set ceiling now, e.g. $200/mo |

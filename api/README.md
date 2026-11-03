@@ -5,10 +5,11 @@ Contract: [`../docs/stage2-api-contract.md`](../docs/stage2-api-contract.md)
 
 ## Layout
 - `wrangler.jsonc` — Worker config: custom domain `api.opraiz.com`, D1 `sceneviz`, R2 `sceneviz-media`
-- `src/index.js` — Worker (auth, accounts, keys, history, catalog, MCP, uploads, media, generation)
+- `src/index.js` — Worker (auth, accounts, keys, history, catalog, MCP, uploads, media, generation, billing)
 - `src/auth.js` — PBKDF2 password hashing + session-token helpers (WebCrypto only)
 - `src/mcp.js` — minimal streamable-HTTP MCP server (JSON-RPC 2.0)
-- `schema.sql` — D1 tables (`keys`, `usage`, `rate`, `accounts`, `sessions`, `generations`)
+- `src/billing.js` — M3 credit packs, Dodo checkout creation, webhook signature verification, idempotent credit grants
+- `schema.sql` — D1 tables (`keys`, `usage`, `rate`, `accounts`, `sessions`, `generations`, `payments`, `credit_ledger`)
 - `issue-key.mjs` — key issuance CLI (optional account linkage)
 
 ## Setup / deploy
@@ -80,6 +81,35 @@ Raw key is printed once; only the SHA-256 hash is stored (plus a 12-char display
 | POST | `/api/v1/{other model-id}` | 501 until mapped in `src/modelMap.js` |
 
 Phase B details: model map in `src/modelMap.js` (endpoint env `RUNPOD_ENDPOINT_ID_IMAGE`, credit cost, input translation, `/models` catalog); RunPod calls in `src/gpu.js`; per-key rate limit 60 req/60s on submits only (429) — the MCP `generate_image` tool goes through the same path; credits debited on successful submit, **no refund on failed jobs yet**. Every successful submit also inserts a `generations` row (status `submitted`), and the poll endpoint updates it with terminal status + output URLs — that table is what `/history` serves; `usage` remains the ledger feed. Requires `RUNPOD_API_KEY` secret and `RUNPOD_ENDPOINT_ID_IMAGE` var in `wrangler.jsonc`.
+
+## Billing (M3 — prepaid credits)
+
+Credit packs are bought from the dashboard (`/dashboard/billing`). One pack today:
+`credits500` = 500 credits for **$2.99** (Dodo, international card) / **₹249** (Cashfree, UPI — not live yet).
+Dodo product: `pdt_0Nr933P1czZWydfhLqAZL`.
+
+Flow: dashboard → `POST /billing/checkout` → Dodo hosted `checkout_url` → user pays →
+signed webhook → credits granted. Every grant is **idempotent by gateway payment id**
+(`payments.gateway_payment_id` UNIQUE): webhook retries hit `ON CONFLICT DO NOTHING` and
+return `{received:true, duplicate:true}` without re-crediting. All grants land in
+`payments` + `credit_ledger` and increment both `accounts.credits` and every active key of
+that account (keys mirror the account balance).
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/billing/packs` | none | `{packs:[{id, credits, priceUSD, priceINR, gateways}], cashfreeAvailable}` |
+| POST | `/billing/checkout` | session | `{pack:'credits500', gateway:'dodo'}` → `{checkout_url}` — redirect the browser there. `gateway:'cashfree'` → 503 until configured. Keys cannot buy credits (401). |
+| POST | `/webhooks/dodo` | signature | Svix scheme: HMAC-SHA256 over `{webhook-id}.{webhook-timestamp}.{raw body}`, base64, compared against each `v1,<sig>` in `webhook-signature`; timestamps older than 5 min → 400. Grants on `payment.succeeded` (also accepts `checkout.completed`) from `metadata.{account_id, credits}`. |
+| POST | `/webhooks/cashfree` | signature | base64 HMAC-SHA256 of the **raw body** vs `x-webhook-signature`. Grants on `payment.captured` / order `PAID` from order metadata `{account_id, credits}`. Order creation itself ships with `CASHFREE_APP_ID`. |
+
+**Fail-closed webhooks:** both webhook routes return
+`503 {detail:{error:'Webhook not configured'}}` and never parse the body until their secret
+exists. Bad signatures/timestamps → `400`; unknown event types → `200 {received:true, ignored:true}`.
+
+Secrets still to set (`npx wrangler secret put <NAME>`):
+- `DODO_WEBHOOK_SECRET` — webhook signing secret from the Dodo dashboard (paste the `whsec_…` value verbatim; the code strips the prefix and base64-decodes it)
+- `CASHFREE_WEBHOOK_SECRET` — Cashfree webhook signature secret
+- `CASHFREE_APP_ID` — unblocks Cashfree checkout (routes 503 with `Cashfree not configured yet` until then; `CASHFREE_SECRET_KEY` is already set)
 
 ## MCP
 ```powershell

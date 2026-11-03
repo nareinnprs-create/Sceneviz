@@ -78,3 +78,34 @@ CREATE TABLE IF NOT EXISTS generations (
 CREATE INDEX IF NOT EXISTS idx_generations_account ON generations(account_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_generations_key ON generations(key_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_generations_job ON generations(job_id);
+
+-- M3 billing: one row per gateway payment attempt that was processed. The
+-- gateway_payment_id UNIQUE constraint is the webhook idempotency gate —
+-- retries hit ON CONFLICT (gateway_payment_id) DO NOTHING. New tables, so
+-- applying schema.sql to the live DB creates them without touching existing
+-- tables (see the keys-table note above).
+CREATE TABLE IF NOT EXISTS payments (
+  id                 TEXT PRIMARY KEY,
+  gateway            TEXT NOT NULL, -- 'dodo' | 'cashfree'
+  gateway_payment_id TEXT NOT NULL UNIQUE,
+  account_id         TEXT NOT NULL,
+  key_id             TEXT,
+  credits            INTEGER NOT NULL,
+  amount_minor       INTEGER NOT NULL DEFAULT 0,
+  currency           TEXT NOT NULL DEFAULT '',
+  status             TEXT NOT NULL DEFAULT 'pending',
+  created_at         TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_payments_account ON payments(account_id, created_at);
+
+-- M3 billing: append-only credit audit trail — every balance change lands here
+-- alongside the payments row / debit that caused it.
+CREATE TABLE IF NOT EXISTS credit_ledger (
+  id         TEXT PRIMARY KEY,
+  account_id TEXT NOT NULL,
+  delta      INTEGER NOT NULL, -- positive = grant, negative = debit
+  reason     TEXT NOT NULL,    -- e.g. 'purchase:dodo'
+  payment_id TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_credit_ledger_account ON credit_ledger(account_id, created_at);

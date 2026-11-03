@@ -11,6 +11,7 @@ import { Spinner, btnGhost } from './ui';
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Overview', exact: true },
   { href: '/dashboard/keys', label: 'API Keys' },
+  { href: '/dashboard/billing', label: 'Buy credits' },
   { href: '/dashboard/history', label: 'History' },
 ];
 

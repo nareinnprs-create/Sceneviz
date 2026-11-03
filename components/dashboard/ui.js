@@ -2,11 +2,13 @@
 // (bg-app-bg / bg-card-bg / primary / text-secondary) — the CSS-var tokens
 // (border-divider, bg-bg-page, …) only resolve inside .landing-root.
 
+import { t } from './i18n';
+
 export function Spinner({ className = 'h-5 w-5' }) {
   return (
     <span
       role="status"
-      aria-label="Loading"
+      aria-label={t('ui.loading')}
       className={`inline-block animate-spin rounded-full border-2 border-white/20 border-t-primary ${className}`}
     />
   );
@@ -46,9 +48,9 @@ export function timeAgo(iso) {
     ['m', 60],
   ];
   for (const [label, span] of units) {
-    if (seconds >= span) return `${Math.floor(seconds / span)}${label} ago`;
+    if (seconds >= span) return `${Math.floor(seconds / span)}${label}${t('ui.agoSuffix')}`;
   }
-  return 'just now';
+  return t('ui.justNow');
 }
 
 export function formatDate(iso) {

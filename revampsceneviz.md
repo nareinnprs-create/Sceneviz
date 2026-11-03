@@ -107,7 +107,45 @@ client for it), so McpCliStudio stops being dead code. CLI ships later.
 
 ---
 
-## 1b. Key & provider architecture (one master key)
+## 1b. Pricing economics — cost coverage + 50% margin (planned)
+
+Rule: **charge = upstream cost × 2.4**, rounded up to whole credits. Credits sell at
+$0.006 each ($2.99/500); tiers discount to ~$0.005. Dodo MoR fees ~5–8%. At the tier
+discount this yields **~45–55% net margin per job, any usage mix** (list-rate buyers ~55%+).
+
+Upstream costs are estimates from provider pricing (Runway does not publish per-model
+numbers); the `margin` admin command monitors real blended margin against payments.
+
+| Model | Est. upstream | New credits | New charge | Old credits |
+|---|---|---|---|---|
+| sdxl-image | $0.01 | 4 | $0.024 | 2 ⚠️ under |
+| flux-schnell-image (BFL klein) | $0.01 | 4 | $0.024 | 2 ⚠️ |
+| flux-dev-image (BFL) | $0.025 | 10 | $0.06 | 5 ⚠️ |
+| flux-kontext-pro-t2i | $0.04 | 16 | $0.096 | 4 ⚠️ |
+| flux-kontext-max-t2i | $0.08 | 32 | $0.192 | 8 ⚠️ |
+| kling-v2.1-master-t2v (5s) | $0.45 | 180 | $1.08 | 80 ⚠️ underwater |
+| kling-v2.1-master-i2v | $0.45 | 180 | $1.08 | 80 ⚠️ |
+| kling-v2.5-turbo-pro-t2v (5s) | $0.65 | 260 | $1.56 | 100 ⚠️ underwater |
+| seedance-pro-t2v (5s) | $0.50 | 200 | $1.20 | 60 ⚠️ underwater |
+| seedance-lite-t2v (5s) | $0.30 | 120 | $0.72 | 60 ⚠️ |
+| seedance-pro-i2v | $0.45 | 180 | $1.08 | 60 ⚠️ |
+| runway-text-to-video (5s) | $0.60 | 240 | $1.44 | 90 ⚠️ underwater |
+| runway-image-to-video | $0.45 | 180 | $1.08 | 90 |
+
+Duration scaling already multiplies credits (2× at 10s) — margins hold per second.
+Tier credit amounts (10k/30k/100k) stay as-is; per-job markup guarantees the margin
+regardless of mix. Knob: `MARKUP` constant (2.4 default; 2.6 if you want tier-buyers
+solidly above 50% too).
+
+Implementation (on approval): `api/src/pricing.js` — upstream cost table + markup engine;
+`costFor()` switches from static `costCredits` to computed credits; `/models` + `/docs` +
+dashboard estimates update automatically; `scripts/admin.mjs margin` reports real
+revenue vs usage-cost blended margin.
+
+---
+
+
+## 1c. Key & provider architecture (one master key)
 
 The user-facing model is **one key, one balance, one bill**:
 

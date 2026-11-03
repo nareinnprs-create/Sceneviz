@@ -5,7 +5,8 @@
  */
 
 const TIMEOUT_MS = 15000;
-const BASE = "https://api.runpod.io/v2";
+// Jobs API lives on api.runpod.AI — the api.runpod.io/v2 gateway returns 404.
+const BASE = "https://api.runpod.ai/v2";
 
 function headers(env) {
   if (!env.RUNPOD_API_KEY) throw new Error("RUNPOD_API_KEY secret is not set");

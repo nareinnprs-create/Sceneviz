@@ -244,6 +244,47 @@ const RUNWAY_RATIO = {
 };
 
 const runway = {
+  /**
+   * i2v inputs: Runway requires images as uploaded assets (ids), not remote
+   * URLs. Download the caller's image, create the asset, PUT the bytes to the
+   * presigned URL, then reference the asset id in promptImage.
+   */
+  async uploadImageAsset(env, source) {
+    let contentType = "image/png";
+    let bytes;
+    if (source.startsWith("data:")) {
+      const commaIdx = source.indexOf(",");
+      contentType = (source.slice(5, commaIdx).split(";")[0] || "image/png").trim();
+      bytes = Buffer.from(source.slice(commaIdx + 1), "base64");
+    } else {
+      const img = await fetch(source, { signal: AbortSignal.timeout(20000) });
+      if (!img.ok) throw new Error(`Could not fetch input image (${img.status})`);
+      contentType = img.headers.get("content-type") || "image/png";
+      bytes = await img.arrayBuffer();
+    }
+    if (bytes.byteLength > 20 * 1024 * 1024) throw new Error("Input image exceeds 20 MB");
+    const ext = contentType.includes("jpeg") ? "jpg" : contentType.includes("webp") ? "webp" : "png";
+    const created = await jfetch(`${RUNWAY_BASE}/assets`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${env.RUNWAY_API_KEY}`,
+        "x-runway-version": RUNWAY_VERSION,
+      },
+      body: JSON.stringify({ name: `sceneviz-${Date.now()}.${ext}`, contentType }),
+    });
+    if (!created?.id || !created?.uploadUrl) {
+      throw new Error(`Runway asset creation failed: ${JSON.stringify(created).slice(0, 200)}`);
+    }
+    const up = await fetch(created.uploadUrl, {
+      method: "PUT",
+      headers: { "content-type": contentType },
+      body: bytes,
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!up.ok) throw new Error(`Runway asset upload failed (${up.status})`);
+    return created.id;
+  },
   async submit(env, cfg, input) {
     if (!env.RUNWAY_API_KEY) throw new Error("RUNWAY_API_KEY secret is not set");
     let ratio = RUNWAY_RATIO[input.aspect_ratio] || "1280:720";
@@ -254,7 +295,11 @@ const runway = {
       ratio,
       duration: Number(input.duration) || 5,
     };
-    if (input.image_url) body.promptImage = input.image_url;
+    if (input.image_url) {
+      // Runway only accepts its own asset ids for promptImage — upload remote
+      // URLs and data: URIs through the assets flow first.
+      body.promptImage = await runway.uploadImageAsset(env, input.image_url);
+    }
     const res = await jfetch(`${RUNWAY_BASE}/${cfg.route}`, {
       method: "POST",
       headers: {

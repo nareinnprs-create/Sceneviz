@@ -33,7 +33,8 @@
 
   // Secrets (never here): RUNPOD_API_KEY — set with `npx wrangler secret put`.
   "vars": {
-    "DEFAULT_KEY_CREDITS": "500",
+    // Free signup credits: 0 — payments are live; grants are now manual/admin.
+    "DEFAULT_KEY_CREDITS": "0",
     // RunPod serverless endpoint (worker-sdxl, RTX 4090, 1 worker max).
     "RUNPOD_ENDPOINT_ID_IMAGE": "asg247tq2u5oe0"
   }

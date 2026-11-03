@@ -215,14 +215,16 @@ export const MODEL_MAP = {
   // Kling's own API needs a funded balance, and its 2.1 line retired (Sept
   // 2026). Runway's text_to_video accepts kling-branded models with the same
   // submit/poll shape, so the catalog's Kling endpoints route there until the
-  // Kling account is topped up. i2v entries need the Runway asset-upload flow
-  // (not yet built) — they surface a clear 501 from the adapter.
+  // Kling account is topped up. i2v entries upload the input image through
+  // the Runway assets flow inside the adapter. Credit cost is proportional
+  // to duration (priced at the 5s base).
   "kling-v2.1-master-t2v": {
     provider: "runway",
     route: "text_to_video",
     modelName: "kling3.0_standard",
     allowedRatios: ["1280:720", "720:1280"],
     costCredits: 80,
+    durationProportional: true,
     modality: "video",
     params: VIDEO_T2V_PARAMS,
     translate: runwayTranslate,
@@ -232,6 +234,7 @@ export const MODEL_MAP = {
     route: "image_to_video",
     modelName: "gen4_turbo",
     costCredits: 80,
+    durationProportional: true,
     modality: "video",
     params: VIDEO_I2V_PARAMS,
     translate: runwayI2VTranslate,
@@ -242,6 +245,7 @@ export const MODEL_MAP = {
     modelName: "kling3.0_pro",
     allowedRatios: ["1280:720", "720:1280"],
     costCredits: 100,
+    durationProportional: true,
     modality: "video",
     params: VIDEO_T2V_PARAMS,
     translate: runwayTranslate,
@@ -255,6 +259,7 @@ export const MODEL_MAP = {
     modelName: "seedance2",
     allowedRatios: ["1280:720", "720:1280"],
     costCredits: 60,
+    durationProportional: true,
     modality: "video",
     params: SEEDANCE_PARAMS,
     translate: runwayTranslate,
@@ -265,6 +270,7 @@ export const MODEL_MAP = {
     modelName: "seedance2_fast",
     allowedRatios: ["1280:720", "720:1280"],
     costCredits: 60,
+    durationProportional: true,
     modality: "video",
     params: SEEDANCE_PARAMS,
     translate: runwayTranslate,
@@ -274,6 +280,7 @@ export const MODEL_MAP = {
     route: "image_to_video",
     modelName: "gen4_turbo",
     costCredits: 60,
+    durationProportional: true,
     modality: "video",
     params: SEEDANCE_I2V_PARAMS,
     translate: runwayI2VTranslate,
@@ -288,6 +295,7 @@ export const MODEL_MAP = {
     modelName: "gen4.5",
     allowedRatios: ["1280:720", "720:1280"],
     costCredits: 90,
+    durationProportional: true,
     modality: "video",
     params: VIDEO_T2V_PARAMS,
     translate: runwayTranslate,
@@ -297,6 +305,7 @@ export const MODEL_MAP = {
     route: "image_to_video",
     modelName: "gen4_turbo",
     costCredits: 90,
+    durationProportional: true,
     modality: "video",
     params: VIDEO_I2V_PARAMS,
     translate: runwayI2VTranslate,

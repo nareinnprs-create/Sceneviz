@@ -112,6 +112,8 @@ export default {
     // Open endpoints (no credential): account signup/login mint sessions.
     if (request.method === "POST" && path === "/auth/signup") return handleSignup(request, env);
     if (request.method === "POST" && path === "/auth/login") return handleLogin(request, env);
+    if (request.method === "POST" && path === "/auth/forgot") return handleForgotPassword(request, env);
+    if (request.method === "POST" && path === "/auth/reset") return handleResetPassword(request, env);
 
     // M3 billing, public half: /billing/packs is read-only, and the webhook
     // routes authenticate via signature (not user credentials) — they MUST sit
@@ -278,6 +280,63 @@ async function route(request, env, url, path, auth) {
 
 /* ------------------------------------------------------- accounts (WS4) */
 
+/**
+ * Password reset: request creates a single-use token (stored hashed, 1h TTL).
+ * shortcut: no transactional email provider yet — the reset link is returned
+ * to admins via `node scripts/admin.mjs reset-link <email>`; when a provider
+ * key lands, email it instead and drop the token from the response.
+ */
+async function handleForgotPassword(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return err400("Expected a JSON body");
+  }
+  const email = String(body?.email || "").trim().toLowerCase();
+  const account = await env.DB.prepare("SELECT id FROM accounts WHERE email = ?").bind(email).first();
+  if (account) {
+    const token = randomHex(24);
+    await env.DB.prepare(
+      "INSERT INTO password_resets (token_hash, account_id) VALUES (?, ?)"
+    )
+      .bind(await sha256Hex(token), account.id)
+      .run();
+    // Returned only here, never for a guessed email (no account-existence leak).
+    return json({ ok: true, note: "Reset link issued to the account owner via support.", reset_token: token });
+  }
+  return json({ ok: true, note: "If the account exists, a reset link has been issued." });
+}
+
+async function handleResetPassword(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return err400("Expected a JSON body");
+  }
+  const token = String(body?.token || "");
+  const newPassword = String(body?.new_password || "");
+  if (!token) return err400("Reset token is required");
+  if (newPassword.length < 8) return err400("Password must be at least 8 characters");
+  const row = await env.DB.prepare(
+    "SELECT account_id, created_at FROM password_resets WHERE token_hash = ?"
+  )
+    .bind(await sha256Hex(token))
+    .first();
+  if (!row) return err400("Invalid or already-used reset token");
+  const ageHours = (Date.now() - new Date(row.created_at.replace(" ", "T") + "Z").getTime()) / 3600000;
+  if (Number.isNaN(ageHours) || ageHours > 1) return err400("Reset token expired — request a new one");
+  const pwHash = await hashPassword(newPassword);
+  await env.DB.batch([
+    env.DB.prepare("UPDATE accounts SET pw_hash = ? WHERE id = ?").bind(pwHash, row.account_id),
+    env.DB.prepare("DELETE FROM password_resets WHERE token_hash = ?").bind(await sha256Hex(token)),
+    // Kill existing sessions — password change invalidates them.
+    env.DB.prepare("DELETE FROM sessions WHERE account_id = ?").bind(row.account_id),
+  ]);
+  return json({ ok: true });
+}
+
 async function handleSignup(request, env) {
   let body;
   try {
@@ -309,8 +368,7 @@ async function handleSignup(request, env) {
   return json({ account_id: id, session_token: token });
 }
 
-async function handleLogin(request, env) {
-  let body;
+async function handleLogin(request, env) {  let body;
   try {
     body = await request.json();
   } catch {
@@ -522,9 +580,13 @@ async function generateCore(env, key, model, body) {
   }
   if (!input.prompt) return err400("Field 'prompt' is required");
 
-  // Client sends num_images (catalog: each image charges separately).
+  // Client sends num_images (catalog: each image charges separately). Video
+  // tiers price proportionally to duration, anchored at the 5s base.
   const numImages = Math.min(2, Math.max(1, Number(input.num_images) || 1));
-  const cost = cfg.costCredits * numImages; // shortcut: no refund on failed jobs, add refund when metering lands
+  const durationFactor = cfg.durationProportional
+    ? Math.min(4, Math.max(1, Math.ceil((Number(input.duration) || 5) / 5)))
+    : 1;
+  const cost = cfg.costCredits * numImages * durationFactor; // shortcut: no refund on failed jobs, add refund when metering lands
   if ((key.credits || 0) < cost) return err403("Insufficient credits");
 
   // Rate limit after the free checks, before any GPU spend.

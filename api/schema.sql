@@ -39,6 +39,13 @@ CREATE TABLE IF NOT EXISTS rate (
   PRIMARY KEY (key_id, window_start)
 );
 
+-- Password reset tokens (SHA-256 of the token; 1h expiry enforced in code).
+CREATE TABLE IF NOT EXISTS password_resets (
+  token_hash  TEXT PRIMARY KEY,
+  account_id  TEXT NOT NULL,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- WS4: accounts + dashboard sessions. Passwords are PBKDF2-SHA256
 -- ('salt:hash' hex); raw passwords are never stored. email_verified defaults
 -- to 1 — shortcut: no email provider yet, signups are auto-verified.

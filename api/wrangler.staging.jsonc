@@ -1,0 +1,23 @@
+{
+  // Opraiz API — STAGING (sceneviz-api-staging at api.staging.opraiz.com).
+  // Isolated D1 + KV; no GPU endpoint vars — generation 503s here by design.
+  "name": "sceneviz-api-staging",
+  "main": "src/index.js",
+  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_date": "2025-09-01",
+  "routes": [{ "pattern": "api.staging.opraiz.com", "custom_domain": true }],
+  "observability": { "enabled": true },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "sceneviz-staging",
+      "database_id": "e55904b6-efb7-4852-9a3f-2c9375adb7c3"
+    }
+  ],
+  "kv_namespaces": [
+    { "binding": "MEDIA_KV", "id": "74315ef2a5c94ebb947209cfb04590fd" }
+  ],
+  "vars": {
+    "DEFAULT_KEY_CREDITS": "0"
+  }
+}

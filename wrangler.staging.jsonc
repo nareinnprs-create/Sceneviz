@@ -1,0 +1,19 @@
+{
+  // Sceneviz web — STAGING (sceneviz-web-staging at staging.opraiz.com).
+  // Built from the same .open-next output as production; deploy with
+  //   npx wrangler deploy --config wrangler.staging.jsonc
+  "name": "sceneviz-web-staging",
+  "main": ".open-next/worker.js",
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_date": "2025-09-01",
+  "routes": [{ "pattern": "staging.opraiz.com", "custom_domain": true }],
+  "observability": { "enabled": true },
+  // NOTE: NEXT_PUBLIC_* vars are baked at BUILD time — staging web talks to
+  // whichever API base was set when `npm run build` ran (production default).
+  "workers_dev": false,
+  "observability": { "enabled": true }
+}

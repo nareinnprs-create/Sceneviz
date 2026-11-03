@@ -65,6 +65,30 @@ function mediaPath(key) {
   return `/media/${key}`;
 }
 
+/** Public media read: R2 when enabled, Workers KV interim. */
+async function handleMediaRead(request, env, url, path) {
+  const objectKey = decodeURIComponent(path.slice("/media/".length));
+  if (!objectKey) return err404();
+  if (env.MEDIA) {
+    const obj = await env.MEDIA.get(objectKey);
+    if (!obj) return err404();
+    const headers = new Headers(CORS);
+    obj.writeHttpMetadata(headers);
+    headers.set("etag", obj.httpEtag);
+    headers.set("cache-control", "public, max-age=31536000, immutable");
+    return new Response(obj.body, { status: 200, headers });
+  }
+  if (env.MEDIA_KV) {
+    const val = await env.MEDIA_KV.getWithMetadata(objectKey, { type: "arrayBuffer" });
+    if (!val || !val.value) return err404();
+    const headers = new Headers(CORS);
+    headers.set("content-type", val.metadata?.contentType || "application/octet-stream");
+    headers.set("cache-control", "public, max-age=31536000, immutable");
+    return new Response(val.value, { status: 200, headers });
+  }
+  return err501("Object storage is not enabled yet.");
+}
+
 // Phase B GPU bridge: per-key fixed-window rate limit on generation submits.
 // shortcut: rate rows accumulate one per active key-minute, no cleanup job —
 // table stays tiny; add a GC pass if usage grows unbounded.
@@ -93,6 +117,11 @@ export default {
     // before the authenticate() gate so gateway retries never get 401s.
     if (request.method === "GET" && path === "/billing/packs") return handleBillingPacks(env);
     if (request.method === "POST" && path === "/webhooks/dodo") return handleDodoWebhook(request, env);
+
+    // Media reads are public: <img> tags cannot send API keys.
+    if (request.method === "GET" && path.startsWith("/media/")) {
+      return await handleMediaRead(request, env, url, path);
+    }
 
     let auth;
     try {
@@ -214,25 +243,7 @@ async function route(request, env, url, path, auth) {
   }
 
   if (method === "GET" && path.startsWith("/media/")) {
-    const objectKey = decodeURIComponent(path.slice("/media/".length));
-    if (env.MEDIA) {
-      const obj = await env.MEDIA.get(objectKey);
-      if (!obj) return err404();
-      const headers = new Headers(CORS);
-      obj.writeHttpMetadata(headers);
-      headers.set("etag", obj.httpEtag);
-      headers.set("cache-control", "public, max-age=31536000, immutable");
-      return new Response(obj.body, { status: 200, headers });
-    }
-    if (env.MEDIA_KV) {
-      const val = await env.MEDIA_KV.getWithMetadata(objectKey, { type: "arrayBuffer" });
-      if (!val || !val.value) return err404();
-      const headers = new Headers(CORS);
-      headers.set("content-type", val.metadata?.contentType || "application/octet-stream");
-      headers.set("cache-control", "public, max-age=31536000, immutable");
-      return new Response(val.value, { status: 200, headers });
-    }
-    return err501("Object storage is not enabled yet.");
+    return await handleMediaRead(request, env, url, path);
   }
 
   // --- generation (Phase B) ---------------------------------------------

@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import AgentChatClient from "../../../../agents/[agent_id]/AgentChatClient";
+import AgentChatClient from "../../../agents/[agent_id]/AgentChatClient";
 import { API_BASE_URL } from "@/lib/apiConfig";
 
 /**

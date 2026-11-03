@@ -6,18 +6,44 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Toaster } from 'react-hot-toast';
 import { API_BASE_URL } from '@/lib/apiConfig';
 import { clearSessionToken, getSessionToken } from './session';
+import { getLang, t } from './i18n';
 import { Spinner, btnGhost } from './ui';
 
 const NAV_LINKS = [
-  { href: '/dashboard', label: 'Overview', exact: true },
-  { href: '/dashboard/keys', label: 'API Keys' },
-  { href: '/dashboard/billing', label: 'Buy credits' },
-  { href: '/dashboard/history', label: 'History' },
+  { href: '/dashboard', labelKey: 'nav.overview', exact: true },
+  { href: '/dashboard/keys', labelKey: 'nav.keys' },
+  { href: '/dashboard/billing', labelKey: 'nav.billing' },
+  { href: '/dashboard/history', labelKey: 'nav.history' },
 ];
 
 const TOASTER_OPTIONS = {
   style: { background: '#1E242D', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' },
 };
+
+// Writes sv_lang and reloads so every t() call re-reads the language.
+function LangToggle({ className = '' }) {
+  const current = getLang();
+  return (
+    <div role="group" aria-label={t('aria.language')} className={`flex overflow-hidden rounded-md border border-white/10 text-xs ${className}`}>
+      {['en', 'zh'].map((lang) => (
+        <button
+          key={lang}
+          type="button"
+          aria-pressed={current === lang}
+          onClick={() => {
+            localStorage.setItem('sv_lang', lang);
+            window.location.reload();
+          }}
+          className={`px-2 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
+            current === lang ? 'bg-primary font-semibold text-black' : 'text-secondary hover:text-white'
+          }`}
+        >
+          {lang === 'en' ? 'EN' : '中文'}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function DashboardShell({ children }) {
   const pathname = usePathname();
@@ -40,6 +66,7 @@ export default function DashboardShell({ children }) {
     return (
       <>
         <Toaster position="top-right" toastOptions={TOASTER_OPTIONS} />
+        <LangToggle className="fixed right-4 top-4 z-50 bg-panel-bg" />
         {children}
       </>
     );
@@ -77,7 +104,7 @@ export default function DashboardShell({ children }) {
           >
             Sceneviz <span className="text-primary">Dashboard</span>
           </Link>
-          <nav aria-label="Dashboard" className="flex items-center gap-1">
+          <nav aria-label={t('nav.ariaDashboard')} className="flex items-center gap-1">
             {NAV_LINKS.map((link) => {
               const active = link.exact ? pathname === link.href : pathname.startsWith(link.href);
               return (
@@ -89,14 +116,15 @@ export default function DashboardShell({ children }) {
                     active ? 'font-semibold text-primary' : 'text-secondary hover:text-white'
                   }`}
                 >
-                  {link.label}
+                  {t(link.labelKey)}
                 </Link>
               );
             })}
           </nav>
           <button type="button" onClick={signOut} className={`${btnGhost} ml-auto`}>
-            Sign out
+            {t('nav.signOut')}
           </button>
+          <LangToggle className="ml-2" />
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-10">{children}</main>

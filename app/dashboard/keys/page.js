@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { apiJson, useSessionToken } from '@/components/dashboard/session';
 import { SkeletonLine, btnPrimary, cardClass, formatDate, inputClass } from '@/components/dashboard/ui';
+import { t } from '@/components/dashboard/i18n';
 
 const MAX_KEYS = 10;
 
@@ -35,7 +36,7 @@ export default function DashboardKeysPage() {
     event.preventDefault();
     const trimmed = label.trim();
     if (!trimmed) {
-      setFormError('Give this key a label.');
+      setFormError(t('keys.giveLabel'));
       return;
     }
     setBusy(true);
@@ -48,7 +49,7 @@ export default function DashboardKeysPage() {
       setNewKey({ key: created.key, label: created.label || trimmed });
       setLabel('');
       setCopied(false);
-      toast.success('API key created');
+      toast.success(t('keys.createdToast'));
       await loadKeys();
     } catch (err) {
       if (!err.handled) setFormError(err.message);
@@ -62,15 +63,15 @@ export default function DashboardKeysPage() {
       await navigator.clipboard.writeText(newKey.key);
       setCopied(true);
     } catch {
-      toast.error('Copy failed — select the key and copy it manually.');
+      toast.error(t('keys.copyFailed'));
     }
   };
 
   const deleteKey = async (item) => {
-    if (!window.confirm(`Delete key "${item.label || item.id}"? Apps using it will stop working.`)) return;
+    if (!window.confirm(t('keys.deleteConfirm', { label: item.label || item.id }))) return;
     try {
       await apiJson(`/keys/${item.id}`, { method: 'DELETE' });
-      toast.success('Key deleted');
+      toast.success(t('keys.deletedToast'));
       await loadKeys();
     } catch (err) {
       if (!err.handled) toast.error(err.message);
@@ -82,9 +83,9 @@ export default function DashboardKeysPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-display text-2xl font-bold tracking-tight">API Keys</h1>
+        <h1 className="font-display text-2xl font-bold tracking-tight">{t('keys.title')}</h1>
         <p className="mt-1 text-sm text-secondary">
-          Keys authenticate studio and API requests. {keys ? `${keys.length}/${MAX_KEYS} used` : ''}
+          {t('keys.subtitle')} {keys ? t('keys.used', { n: keys.length }) : ''}
         </p>
       </header>
 
@@ -94,7 +95,7 @@ export default function DashboardKeysPage() {
           className="rounded-xl border border-[#F2AE43]/40 bg-[#F2AE43]/10 p-5"
         >
           <p className="text-sm font-semibold text-[#F2AE43]">
-            Store it now &mdash; it can&apos;t be shown again.
+            {t('keys.storeNow')}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <code className="min-w-0 flex-1 break-all rounded-md bg-black/40 px-3 py-2 font-mono text-sm text-white">
@@ -105,26 +106,26 @@ export default function DashboardKeysPage() {
               onClick={copyKey}
               className="rounded-md bg-[#F2AE43] px-4 py-2 text-sm font-semibold text-black transition-colors hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F2AE43]/60"
             >
-              {copied ? 'Copied!' : 'Copy key'}
+              {copied ? t('keys.copied') : t('keys.copyKey')}
             </button>
           </div>
-          <p className="mt-2 text-xs text-secondary">Label: {newKey.label}</p>
+          <p className="mt-2 text-xs text-secondary">{t('keys.labelOf', { label: newKey.label })}</p>
         </div>
       )}
 
-      <section className={`${cardClass} p-6`} aria-label="Create a new API key">
-        <p className="text-xs font-bold uppercase tracking-widest text-secondary">Create a key</p>
+      <section className={`${cardClass} p-6`} aria-label={t('aria.createKey')}>
+        <p className="text-xs font-bold uppercase tracking-widest text-secondary">{t('keys.createTitle')}</p>
         <form onSubmit={createKey} className="mt-3 flex flex-wrap items-start gap-3">
           <div className="min-w-0 flex-1">
             <label htmlFor="key-label" className="sr-only">
-              Key label
+              {t('keys.keyLabel')}
             </label>
             <input
               id="key-label"
               type="text"
               value={label}
               maxLength={40}
-              placeholder="Label, e.g. &quot;my-app&quot;"
+              placeholder={t('keys.labelPlaceholder')}
               onChange={(event) => {
                 setLabel(event.target.value);
                 setFormError('');
@@ -133,10 +134,10 @@ export default function DashboardKeysPage() {
             />
           </div>
           <button type="submit" disabled={busy || atLimit} className={btnPrimary}>
-            {busy ? 'Creating…' : 'Create key'}
+            {busy ? t('keys.creating') : t('keys.createKey')}
           </button>
         </form>
-        {atLimit && <p className="mt-2 text-xs text-secondary">Key limit reached — delete one to create another.</p>}
+        {atLimit && <p className="mt-2 text-xs text-secondary">{t('keys.limitReached')}</p>}
         {formError && (
           <p role="alert" className="mt-2 text-sm text-red-400">
             {formError}
@@ -144,7 +145,7 @@ export default function DashboardKeysPage() {
         )}
       </section>
 
-      <section aria-label="Your API keys" className="space-y-3">
+      <section aria-label={t('aria.yourKeys')} className="space-y-3">
         {keys === null ? (
           <>
             <SkeletonLine className="h-20 w-full" />
@@ -152,7 +153,7 @@ export default function DashboardKeysPage() {
           </>
         ) : keys.length === 0 ? (
           <div className={`${cardClass} p-8 text-center text-sm text-secondary`}>
-            No keys yet — create one above.
+            {t('keys.empty')}
           </div>
         ) : (
           keys.map((item) => (
@@ -161,16 +162,16 @@ export default function DashboardKeysPage() {
               className={`${cardClass} flex flex-wrap items-center gap-x-4 gap-y-2 p-4`}
             >
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{item.label || 'Untitled key'}</p>
+                <p className="truncate font-medium">{item.label || t('keys.untitled')}</p>
                 <p className="mt-0.5 break-all font-mono text-xs text-secondary">{item.key_hint}</p>
-                <p className="mt-0.5 text-xs text-secondary">Created {formatDate(item.created_at)}</p>
+                <p className="mt-0.5 text-xs text-secondary">{t('keys.createdAt', { date: formatDate(item.created_at) })}</p>
               </div>
               <button
                 type="button"
                 onClick={() => deleteKey(item)}
                 className="rounded-md border border-red-500/30 px-3 py-1.5 text-sm text-red-400 transition-colors hover:border-red-500/60 hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/60"
               >
-                Delete
+                {t('keys.delete')}
               </button>
             </div>
           ))

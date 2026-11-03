@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { apiJson, useSessionToken } from '@/components/dashboard/session';
 import { SkeletonLine, btnPrimary, cardClass } from '@/components/dashboard/ui';
+import { t } from '@/components/dashboard/i18n';
 
 const TIER_ORDER = ['starter', 'growth', 'scale'];
 
 const TIER_COPY = {
-  starter: { name: 'Starter', blurb: 'For trying real workflows' },
-  growth: { name: 'Growth', blurb: 'For daily production work', popular: true },
-  scale: { name: 'Scale', blurb: 'For teams and heavy pipelines' },
+  starter: { nameKey: 'billing.tierStarter', blurbKey: 'billing.tierStarterBlurb' },
+  growth: { nameKey: 'billing.tierGrowth', blurbKey: 'billing.tierGrowthBlurb', popular: true },
+  scale: { nameKey: 'billing.tierScale', blurbKey: 'billing.tierScaleBlurb' },
 };
 
 function priceLabel(tier) {
@@ -63,21 +64,19 @@ export default function DashboardBillingPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-display text-2xl font-bold tracking-tight">Buy credits</h1>
+        <h1 className="font-display text-2xl font-bold tracking-tight">{t('billing.title')}</h1>
         <p className="mt-1 text-sm text-secondary">
-          Credits are shared across your account and all of its API keys. Prices shown in
-          {data?.currency && data.currency !== 'USD' ? ` ${data.currency} (approximate) — ` : ' USD — '}
-          checkout adapts to your local currency automatically.
+          {t('billing.subtitle')}{' '}
+          {data?.currency && data.currency !== 'USD'
+            ? t('billing.priceLocal', { cur: data.currency })
+            : t('billing.priceUsd')}
         </p>
       </header>
 
       {paid && (
         <div role="alert" className="rounded-xl border border-primary/40 bg-primary/10 p-5">
-          <p className="text-sm font-semibold text-primary">Payment received.</p>
-          <p className="mt-1 text-sm text-secondary">
-            We&apos;re confirming it now — your balance updates automatically, usually within a
-            minute. No need to do anything else.
-          </p>
+          <p className="text-sm font-semibold text-primary">{t('billing.paymentReceived')}</p>
+          <p className="mt-1 text-sm text-secondary">{t('billing.paymentNote')}</p>
         </div>
       )}
 
@@ -92,36 +91,39 @@ export default function DashboardBillingPage() {
       ) : (
         <div className="grid gap-5 md:grid-cols-3">
           {tiers.map((tier) => {
-            const copy = TIER_COPY[tier.id] || { name: tier.id, blurb: '' };
+            const copy = TIER_COPY[tier.id] || {};
+            const name = copy.nameKey ? t(copy.nameKey) : tier.id;
             return (
               <section
                 key={tier.id}
-                aria-label={`Tier ${copy.name}`}
+                aria-label={t('billing.tierAria', { name })}
                 className={`${cardClass} flex flex-col p-6 ${
                   copy.popular ? 'ring-1 ring-primary/50' : ''
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <h2 className="font-display text-lg font-bold">{copy.name}</h2>
+                  <h2 className="font-display text-lg font-bold">{name}</h2>
                   {copy.popular && (
                     <span className="rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-                      Popular
+                      {t('billing.popular')}
                     </span>
                   )}
                 </div>
-                <p className="mt-1 text-sm text-secondary">{copy.blurb}</p>
+                <p className="mt-1 text-sm text-secondary">{copy.blurbKey ? t(copy.blurbKey) : ''}</p>
                 <p className="mt-4 font-display text-3xl font-bold tracking-tight">
                   {priceLabel(tier)}
                 </p>
                 {tier.localPrice && (
-                  <p className="mt-0.5 text-xs text-secondary">base ${tier.usd} USD</p>
+                  <p className="mt-0.5 text-xs text-secondary">{t('billing.baseUsd', { usd: tier.usd })}</p>
                 )}
                 <p className="mt-3 text-sm font-semibold text-primary">
-                  {tier.credits.toLocaleString()} credits
+                  {t('billing.credits', { n: tier.credits.toLocaleString() })}
                 </p>
                 <p className="mt-1 text-xs text-secondary">
-                  ≈ {Math.floor(tier.credits / 4).toLocaleString()} flux-dev or{' '}
-                  {Math.floor(tier.credits / 2).toLocaleString()} sdxl images
+                  {t('billing.images', {
+                    a: Math.floor(tier.credits / 4).toLocaleString(),
+                    b: Math.floor(tier.credits / 2).toLocaleString(),
+                  })}
                 </p>
                 <button
                   type="button"
@@ -129,7 +131,7 @@ export default function DashboardBillingPage() {
                   disabled={busy !== ''}
                   className={`${btnPrimary} mt-6 w-full`}
                 >
-                  {busy === tier.id ? 'Starting checkout…' : `Buy ${copy.name}`}
+                  {busy === tier.id ? t('billing.startingCheckout') : t('billing.buy', { name })}
                 </button>
               </section>
             );
@@ -137,10 +139,7 @@ export default function DashboardBillingPage() {
         </div>
       )}
 
-      <p className="text-xs text-secondary">
-        One-time purchase, no subscription. Payments are processed securely by Dodo Payments
-        (merchant of record) — cards and local payment methods are supported at checkout.
-      </p>
+      <p className="text-xs text-secondary">{t('billing.footer')}</p>
     </div>
   );
 }

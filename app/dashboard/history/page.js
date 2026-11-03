@@ -5,6 +5,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { apiJson, useSessionToken } from '@/components/dashboard/session';
 import { SkeletonLine, StatusBadge, btnGhost, btnPrimary, cardClass, timeAgo } from '@/components/dashboard/ui';
+import { t } from '@/components/dashboard/i18n';
 
 const PAGE_SIZE = 20;
 
@@ -51,12 +52,12 @@ export default function DashboardHistoryPage() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="font-display text-2xl font-bold tracking-tight">History</h1>
-        <p className="mt-1 text-sm text-secondary">Your recent generations, newest first.</p>
+        <h1 className="font-display text-2xl font-bold tracking-tight">{t('history.title')}</h1>
+        <p className="mt-1 text-sm text-secondary">{t('history.subtitle')}</p>
       </header>
 
       {loading ? (
-        <div className="space-y-3" aria-label="Loading history">
+        <div className="space-y-3" aria-label={t('aria.loadingHistory')}>
           <SkeletonLine className="h-24 w-full" />
           <SkeletonLine className="h-24 w-full" />
           <SkeletonLine className="h-24 w-full" />
@@ -67,14 +68,14 @@ export default function DashboardHistoryPage() {
         </div>
       ) : items.length === 0 ? (
         <div className={`${cardClass} p-10 text-center`}>
-          <p className="text-sm text-secondary">No generations yet &mdash; head to the studio.</p>
+          <p className="text-sm text-secondary">{t('history.empty')}</p>
           <Link href="/studio" className={`${btnPrimary} mt-4 inline-block`}>
-            Open Studio
+            {t('history.openStudio')}
           </Link>
         </div>
       ) : (
         <>
-          <section aria-label="Generations" className="space-y-3">
+          <section aria-label={t('aria.generations')} className="space-y-3">
             {items.map((item) => {
               const thumb = item.output_urls?.[0];
               const showThumb = thumb && (thumb.startsWith('data:') || thumb.startsWith('https'));
@@ -104,11 +105,11 @@ export default function DashboardHistoryPage() {
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate font-medium">{item.model || 'Unknown model'}</p>
+                      <p className="truncate font-medium">{item.model || t('history.unknownModel')}</p>
                       <StatusBadge status={item.status} />
                     </div>
                     <p className="mt-1 text-xs text-secondary" title={item.created_at || ''}>
-                      {timeAgo(item.created_at)} &middot; {item.cost_credits} credits
+                      {timeAgo(item.created_at)} &middot; {t('history.credits', { n: item.cost_credits })}
                     </p>
                   </div>
                 </article>
@@ -119,7 +120,7 @@ export default function DashboardHistoryPage() {
           {nextCursor && (
             <div className="text-center">
               <button type="button" onClick={loadMore} disabled={loadingMore} className={btnGhost}>
-                {loadingMore ? 'Loading…' : 'Load more'}
+                {loadingMore ? t('history.loading') : t('history.loadMore')}
               </button>
             </div>
           )}

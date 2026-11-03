@@ -33,12 +33,33 @@ import {
   verifyDodoWebhook,
   grantCredits,
 } from "./billing.js";
+import {
+  dispatch as agentsDispatch,
+  listTemplateAgents,
+  listFeaturedAgents,
+  listAgentSkills as listAgentStudioSkills,
+  getBySlug as getAgentBySlugPublic,
+  agentJobPollResponse,
+} from "./agentsApi.js";
+import {
+  dispatch as workflowsDispatch,
+  initEngine,
+  listTemplateWorkflows,
+  listPublishedWorkflows,
+  nodeSchemasRegistry,
+  getWorkflowDef,
+} from "./workflowsApi.js";
+import { dispatch as creativeDispatch } from "./creativeApi.js";
+
+// Workflows' run engine reuses this module's generation pipeline (credits +
+// rate limit + provider adapters live here) — set once at module scope.
+initEngine({ generateCore, persistOutputs, checkRateLimit });
 
 const JSON_HDR = { "content-type": "application/json; charset=utf-8" };
 
 const CORS = {
   "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS",
+  "access-control-allow-methods": "GET,POST,PUT,DELETE,PATCH,OPTIONS",
   "access-control-allow-headers": "x-api-key,authorization,content-type",
   "access-control-max-age": "86400",
 };
@@ -101,7 +122,7 @@ const MAX_KEYS_PER_ACCOUNT = 10;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
 
@@ -131,6 +152,46 @@ export default {
       return await handleMediaRead(request, env, url, path);
     }
 
+    // M7 studios, public read half: galleries + builder schemas. The client
+    // sends x-api-key anyway; these just allow anonymous reads (shareable
+    // /agents/by-slug links, template browsing) to skip the auth gate.
+    // by-slug / get-workflow-def fall through for authed callers so is_owner
+    // still resolves — only anonymous requests are served here.
+    if (request.method === "GET") {
+      let handled;
+      try {
+        if (path === "/agents/templates/agents") handled = json(await listTemplateAgents());
+        else if (path === "/agents/featured/agents") handled = json(await listFeaturedAgents());
+        else if (path === "/agents/skills") handled = json(listAgentStudioSkills());
+        else if (path === "/workflow/get-template-workflows" || path === "/workflow/templates") {
+          handled = json(await listTemplateWorkflows(env));
+        } else if (path === "/workflow/get-published-workflows") handled = json(await listPublishedWorkflows(env));
+        else if (path === "/workflow/node-schemas" || /^\/workflow\/([^/]+)\/node-schemas$/.test(path)) {
+          handled = json(nodeSchemasRegistry());
+        } else {
+          const defMatch = path.match(/^\/workflow\/get-workflow-def\/([^/]+)$/);
+          const bySlug = path.match(/^\/agents\/(?:by-slug\/)?([^/]+)$/);
+          const isAgentDetail =
+            bySlug && !["templates", "featured", "user", "skills", "suggest", "conversations"].includes(bySlug[1]);
+          if (defMatch || isAgentDetail) {
+            let soft = null;
+            try {
+              const a = await authenticate(request, env);
+              if (a.ok) soft = a;
+            } catch {}
+            if (defMatch) {
+              handled = await getWorkflowDef(env, soft, defMatch[1]);
+            } else if (!soft) {
+              handled = await getAgentBySlugPublic(env, null, bySlug[1]); // anonymous share view
+            }
+          }
+        }
+      } catch (e) {
+        return json({ detail: { error: `Studio route failed: ${String(e?.message || e)}` } }, 500);
+      }
+      if (handled) return handled;
+    }
+
     let auth;
     try {
       auth = await authenticate(request, env);
@@ -140,7 +201,7 @@ export default {
     if (!auth.ok) return auth.response;
 
     try {
-      return await route(request, env, url, path, auth);
+      return await route(request, env, url, path, auth, ctx);
     } catch (e) {
       return json({ detail: { error: String(e?.message || e) } }, 500);
     }
@@ -183,7 +244,7 @@ async function authenticate(request, env) {
 
 /* ----------------------------------------------------------------- routes */
 
-async function route(request, env, url, path, auth) {
+async function route(request, env, url, path, auth, ctx) {
   const method = request.method;
   const key = auth.key;
 
@@ -197,6 +258,19 @@ async function route(request, env, url, path, auth) {
   // /history and /api/v1/history both served (contract legacy path + dashboard).
   if (method === "GET" && (path === "/history" || path === "/api/v1/history")) {
     return handleHistory(request, env, auth);
+  }
+
+  // --- M7 studios (agents / workflows / creative agent) --------------------
+  // Key or session everywhere; the run-submit handlers inside re-check for a
+  // raw key themselves (generation debits).
+  if (path === "/agents" || path.startsWith("/agents/")) {
+    return agentsDispatch(request, env, auth, path);
+  }
+  if (path === "/workflow" || path.startsWith("/workflow/")) {
+    return workflowsDispatch(request, env, auth, path, ctx, key);
+  }
+  if (path === "/api/v1/creative-agent" || path.startsWith("/api/v1/creative-agent/")) {
+    return creativeDispatch(request, env, auth, path);
   }
 
   // Everything below requires a raw API key — sessions cannot generate.
@@ -263,7 +337,8 @@ async function route(request, env, url, path, auth) {
       model === "upload_file" ||
       model === "account" ||
       model === "models" ||
-      model === "history"
+      model === "history" ||
+      model === "creative-agent"
     ) {
       return err404();
     }
@@ -272,6 +347,10 @@ async function route(request, env, url, path, auth) {
 
   const pollMatch = path.match(/^\/api\/v1\/predictions\/([^/]+)\/result$/);
   if (method === "GET" && pollMatch) {
+    // Agent-chat jobs surface their chat envelope through this same poll
+    // route (contract §8 #18) — media jobs fall through to the provider poll.
+    const agentRes = await agentJobPollResponse(env, pollMatch[1]);
+    if (agentRes) return agentRes;
     return await handleResult(request, env, key, pollMatch[1]);
   }
 

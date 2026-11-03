@@ -268,6 +268,36 @@ These endpoints are being added and are not yet live as of November 2026:
 `POST /keys` + `DELETE /keys/{id}` (self-serve API key management), and
 `GET /api/v1/history` (paginated past generations). This document is updated as each ships.
 
+## Studios: agents / workflows / creative agent (M7)
+
+D1-backed minimal parity for the three studio surfaces — full request/response
+detail in [`api/README.md`](../api/README.md#studios-m7--agents--workflows--creative-agent).
+
+- **Agents** (`/agents/*`): template + user galleries, agent CRUD, conversations,
+  and chat. Chat is a submit+poll flow (`POST /agents/by-slug/{slug}/chat` →
+  `{request_id}` → `GET /api/v1/predictions/{id}/result` returns the chat
+  envelope `{conversation_id, messages, is_complete, suggestions, status}`).
+  **Replies come from a local template responder in v1** — no LLM key yet.
+  Galleries and by-slug reads are public; all writes use the standard key/session auth.
+- **Workflows** (`/workflow/*`): defs CRUD, gallery lists, a static node-schema
+  registry (`GET /workflow/{id}/node-schemas`), and a run engine. Runs insert a
+  `workflow_runs` row, return `{run_id}` immediately, execute the graph
+  node-by-node in the background, and serve progress via
+  `GET /workflow/run/{id}/status` and `/api-outputs`. Text nodes pass through;
+  image/video generation nodes reuse the standard generation pipeline
+  (credits + rate limit apply; run submits require a raw API key).
+  `/workflow/architect` returns a template single-node graph through the same
+  poll pattern. `/workflow/cloudfront-signed-url` passes the URL back
+  (outputs are public `/media/*` objects; nothing to sign).
+- **Creative agent** (`/api/v1/creative-agent/*`): design-canvas sessions,
+  message snapshots, asset registry, chat/run-skill jobs and the
+  `GET /jobs/{id}/events` poll. Jobs complete synchronously with template
+  replies in v1 (info + text events, `done: true`).
+
+New D1 tables (idempotent in `api/schema.sql` — re-run before deploy):
+`agents`, `agent_conversations`, `agent_messages`, `agent_jobs`, `workflows`,
+`workflow_runs`, `ca_sessions`, `ca_jobs`, `ca_assets`.
+
 ## Changelog
 
 ### November 2026 — Phase A/B launch
@@ -289,3 +319,10 @@ These endpoints are being added and are not yet live as of November 2026:
 - Added video: Kling v2.1 Master / v2.5 Turbo Pro (t2v + i2v), Seedance 1.0 pro/lite (t2v)
   and pro (i2v) via fal, and Runway (gen4.5 t2v, gen4_turbo i2v).
 - Model catalog now reports `provider` per model; MCP `list_models` reflects the same map.
+
+### November 2026 — M7 studio endpoints
+
+- Agents, Workflows and Creative-Agent studios served on this worker with D1
+  state (see "Studios" section above). Agent/creative chat uses a template
+  responder until an LLM backend lands; workflow generation nodes debit
+  credits through the shared generation path.

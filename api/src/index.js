@@ -28,6 +28,7 @@ import {
 import { handleMcp } from "./mcp.js";
 import {
   PACKS,
+  localizedTiers,
   createDodoCheckout,
   verifyDodoWebhook,
   grantCredits,
@@ -115,8 +116,13 @@ export default {
     // M3 billing, public half: /billing/packs is read-only, and the webhook
     // routes authenticate via signature (not user credentials) — they MUST sit
     // before the authenticate() gate so gateway retries never get 401s.
-    if (request.method === "GET" && path === "/billing/packs") return handleBillingPacks(env);
-    if (request.method === "POST" && path === "/webhooks/dodo") return handleDodoWebhook(request, env);
+    // Public routes sit outside the auth try/catch, so they need their own.
+    try {
+      if (request.method === "GET" && path === "/billing/packs") return json(await handleBillingPacks(env, request));
+      if (request.method === "POST" && path === "/webhooks/dodo") return await handleDodoWebhook(request, env);
+    } catch (e) {
+      return json({ detail: { error: `Billing route failed: ${String(e?.message || e)}` } }, 500);
+    }
 
     // Media reads are public: <img> tags cannot send API keys.
     if (request.method === "GET" && path.startsWith("/media/")) {
@@ -394,15 +400,12 @@ async function handleDeleteKey(env, auth, keyId) {
 
 /* ---------------------------------------------------------------- billing */
 
-function handleBillingPacks(env) {
-  return json({
-    packs: Object.entries(PACKS).map(([id, p]) => ({
-      id,
-      credits: p.credits,
-      priceUSD: p.priceUSD,
-      gateways: p.gateways,
-    })),
-  });
+function handleBillingPacks(env, request) {
+  // Display-only override header wins (also handy for testing); real visitors
+  // have no header, so Cloudflare's geo lookup decides. Charge currency is
+  // unaffected — Dodo's checkout adapts regardless of what we display.
+  const country = request.headers.get("x-country") || request.cf?.country || "";
+  return localizedTiers(env, country);
 }
 
 async function handleBillingCheckout(request, env, auth) {
@@ -411,10 +414,8 @@ async function handleBillingCheckout(request, env, auth) {
   try {
     body = await request.json();
   } catch {}
-  const pack = PACKS[String(body?.pack || "")];
-  if (!pack) return err400("Unknown credit pack");
-  const gateway = String(body?.gateway || "");
-  if (!pack.gateways.includes(gateway)) return err400("Unknown gateway");
+  const pack = PACKS[String(body?.tier || body?.pack || "")];
+  if (!pack) return err400("Unknown credit tier");
   try {
     const checkout_url = await createDodoCheckout(env, auth.account, pack, auth.account.email);
     return json({ checkout_url });

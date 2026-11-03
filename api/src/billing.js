@@ -9,13 +9,98 @@
  */
 
 export const PACKS = {
-  credits500: {
-    credits: 500,
-    dodoProduct: "pdt_0Nr933P1czZWydfhLqAZL", // "Sceneviz — 500 credits", $2.99 one-time
-    priceUSD: "$2.99",
-    gateways: ["dodo"],
+  starter: {
+    credits: 10000,
+    dodoProduct: "pdt_0Nr9G7vYVUFBNHCAY8gGM", // $50.00 USD one-time
+    usd: 50,
+  },
+  growth: {
+    credits: 30000,
+    dodoProduct: "pdt_0Nr9G82BTXLYK8cV7ndxX", // $149.00 USD one-time
+    usd: 149,
+  },
+  scale: {
+    credits: 100000,
+    dodoProduct: "pdt_0Nr9G89cJY2zB33DCWFLE", // $499.00 USD one-time
+    usd: 499,
   },
 };
+
+// --- localized pricing display -------------------------------------------
+// The charge always happens on Dodo's hosted checkout (adaptive currency);
+// these rates only drive the *display* approximation per visitor country.
+// Rates fetched from open.er-api.com (free, keyless), cached 24h in KV.
+
+const COUNTRY_CURRENCY = {
+  IN: "INR", GB: "GBP", JP: "JPY", AU: "AUD", CA: "CAD", CH: "CHF", SG: "SGD",
+  AE: "AED", SA: "SAR", BR: "BRL", MX: "MXN", KR: "KRW", HK: "HKD", NZ: "NZD",
+  SE: "SEK", NO: "NOK", DK: "DKK", PL: "PLN", TR: "TRY", ZA: "ZAR", TH: "THB",
+  ID: "IDR", MY: "MYR", PH: "PHP", VN: "VND", PK: "PKR", BD: "BDT", NG: "NGN",
+  EG: "EGP", IL: "ILS", CZ: "CZK", HU: "HUF", RO: "RON",
+  DE: "EUR", FR: "EUR", IT: "EUR", ES: "EUR", NL: "EUR", BE: "EUR", AT: "EUR",
+  IE: "EUR", PT: "EUR", FI: "EUR", GR: "EUR", LU: "EUR", SK: "EUR", SI: "EUR",
+  EE: "EUR", LV: "EUR", LT: "EUR", CY: "EUR", MT: "EUR", HR: "EUR",
+};
+
+// Round up to a tidy number per currency so prices read like real price tags.
+function roundLocal(currency, amount) {
+  const steps = { INR: 10, JPY: 100, IDR: 1000, VND: 1000, KRW: 100, HUF: 10 };
+  const step = steps[currency];
+  if (!step) return Math.round(amount * 100) / 100;
+  return Math.ceil(amount / step) * step;
+}
+
+const SYMBOLS = { INR: "₹", EUR: "€", GBP: "£", JPY: "¥" };
+
+async function getRates(env) {
+  if (env.MEDIA_KV) {
+    const cached = await env.MEDIA_KV.get("fx/usd");
+    if (cached) {
+      try {
+        const c = JSON.parse(cached);
+        if (Date.now() - c.at < 86400000) return c.rates;
+      } catch {}
+    }
+  }
+  try {
+    const res = await fetch("https://open.er-api.com/v6/latest/USD", { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error(`FX ${res.status}`);
+    const data = await res.json();
+    if (!data?.rates) throw new Error("FX payload missing rates");
+    if (env.MEDIA_KV) {
+      await env.MEDIA_KV.put("fx/usd", JSON.stringify({ at: Date.now(), rates: data.rates }), {
+        expirationTtl: 86400,
+      });
+    }
+    return data.rates;
+  } catch {
+    return null; // graceful: caller falls back to USD display
+  }
+}
+
+/** Localized tier list for a visitor country code (request.cf.country). */
+export async function localizedTiers(env, country) {
+  const currency = (country && COUNTRY_CURRENCY[country]) || "USD";
+  const base = Object.entries(PACKS).map(([id, p]) => ({
+    id,
+    credits: p.credits,
+    usd: p.usd,
+    priceUSD: `$${p.usd}`,
+    gateways: ["dodo"],
+  }));
+  if (currency === "USD") return { currency: "USD", tiers: base };
+
+  const rates = await getRates(env);
+  const rate = rates?.[currency];
+  if (!rate) return { currency: "USD", tiers: base };
+
+  const symbol = SYMBOLS[currency] || `${currency} `;
+  const tiers = base.map((t) => {
+    const local = roundLocal(currency, t.usd * rate);
+    return { ...t, localPrice: `${symbol}${local.toLocaleString("en-US")}` };
+  });
+  return { currency, tiers };
+}
 
 const DODO_API_BASE = "https://live.dodopayments.com";
 const BILLING_RETURN_URL = "https://sceneviz.opraiz.com/dashboard/billing?paid=1";

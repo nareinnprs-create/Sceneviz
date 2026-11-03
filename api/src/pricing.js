@@ -16,7 +16,7 @@ const UPSTREAM_CENTS = {
   "flux-schnell-image": 1, // BFL FLUX.2 klein 4b (cheapest)
   "flux-kontext-pro-t2i": 4,
   "flux-kontext-max-t2i": 8,
-  "sdxl-image": 1, // RunPod 4090 worker, ~8s warm + cold-start amortization
+  "sdxl-image": 1, // now served via RunPod public endpoint (flux schnell)
   // video (5-second base; duration scaling multiplies)
   "kling-v2.1-master-t2v": 45, // served via Runway (kling3.0_standard)
   "kling-v2.1-master-i2v": 45,

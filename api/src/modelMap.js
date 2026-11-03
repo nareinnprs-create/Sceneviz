@@ -170,9 +170,9 @@ const SEEDANCE_I2V_PARAMS = [
 export const MODEL_MAP = {
   // --- images -------------------------------------------------------------
   "flux-dev-image": {
-    provider: "bfl",
-    path: "/v1/flux-dev",
-    costCredits: 5,
+    provider: "runpodPublic",
+    slug: "black-forest-labs-flux-1-dev",
+    costCredits: 9, // $0.02/MP × ~1.05 MP, markup 2.4
     modality: "image",
     params: IMAGE_WH_PARAMS,
     translate: bflWHTranslate,
@@ -180,36 +180,36 @@ export const MODEL_MAP = {
   // FLUX.1 schnell is retired from the BFL API; the cheapest/fastest live
   // model (FLUX.2 klein 4b) serves this catalog id. Same prompt/w/h schema.
   "flux-schnell-image": {
-    provider: "bfl",
-    path: "/v1/flux-2-klein-4b",
-    costCredits: 2,
+    provider: "runpodPublic",
+    slug: "black-forest-labs-flux-1-schnell",
+    costCredits: 1, // $0.0024/MP × ~1.05 MP, markup 2.4
     modality: "image",
     params: IMAGE_WH_PARAMS,
     translate: bflWHTranslate,
   },
   "flux-kontext-pro-t2i": {
-    provider: "bfl",
-    path: "/v1/flux-kontext-pro",
-    costCredits: 4,
+    provider: "runpodPublic",
+    slug: "black-forest-labs-flux-kontext-dev",
+    costCredits: 9,
     modality: "image",
     params: IMAGE_AR_PARAMS,
     translate: kontextTranslate,
   },
   "flux-kontext-max-t2i": {
-    provider: "bfl",
-    path: "/v1/flux-kontext-max",
-    costCredits: 8,
+    provider: "runpodPublic",
+    slug: "black-forest-labs-flux-kontext-dev",
+    costCredits: 9,
     modality: "image",
     params: IMAGE_AR_PARAMS,
     translate: kontextTranslate,
   },
   "sdxl-image": {
-    provider: "runpod",
-    endpointEnv: "RUNPOD_ENDPOINT_ID_IMAGE",
-    costCredits: 2,
+    provider: "runpodPublic",
+    slug: "black-forest-labs-flux-1-schnell",
+    costCredits: 1,
     modality: "image",
-    params: INPUT_PARAMS,
-    translate: sdxlTranslate,
+    params: IMAGE_WH_PARAMS,
+    translate: bflWHTranslate,
   },
 
   // --- kling via Runway aggregator ------------------------------------------

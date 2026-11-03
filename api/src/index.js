@@ -16,6 +16,8 @@
 
 import { MODEL_MAP, modelCatalog, costFor } from "./modelMap.js";
 import { PROVIDERS } from "./providers.js";
+import { runpodPublic } from "./runpodPublic.js";
+const ALL_PROVIDERS = { ...PROVIDERS, runpodPublic };
 import {
   sha256Hex,
   randomHex,
@@ -762,7 +764,7 @@ async function generateCore(env, key, model, body, opts = {}) {
 
   let job;
   try {
-    job = await PROVIDERS[cfg.provider].submit(env, cfg, input);
+    job = await ALL_PROVIDERS[cfg.provider].submit(env, cfg, input);
   } catch (e) {
     return json({ detail: { error: `Provider submit failed: ${String(e?.message || e)}` } }, 502);
   }
@@ -823,7 +825,7 @@ async function generateCore(env, key, model, body, opts = {}) {
 async function pollJob(env, cfg, jobId, origin) {
   let result;
   try {
-    result = await PROVIDERS[cfg.provider].poll(env, cfg, jobId);
+    result = await ALL_PROVIDERS[cfg.provider].poll(env, cfg, jobId);
   } catch (e) {
     return { pollError: `Provider status failed: ${String(e?.message || e)}` };
   }

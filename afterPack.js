@@ -9,14 +9,10 @@ import fs from 'fs';
 function stampWindowsExe(exePath, packager) {
     const archDir = process.arch === 'arm64' ? 'arm64' : process.arch === 'ia32' ? 'ia32' : 'x64';
     const appBuilder = path.join('node_modules', 'app-builder-bin', 'win', archDir, 'app-builder.exe');
-    const iconOut = path.resolve('release', '.icon-ico');
-    fs.mkdirSync(iconOut, { recursive: true });
 
-    let iconPath = path.join(iconOut, 'icon.ico');
-    if (!fs.existsSync(iconPath)) {
-        execFileSync(appBuilder, ['icon', '--format', 'ico', '--root', '.', '--root', '.',
-            '--out', iconOut, '--input', path.join('public', 'banner.png')], { stdio: 'pipe' });
-    }
+    // build/icon.ico is already a multi-size (16–256) ico; stamp it directly
+    // instead of regenerating a single-size ico from public/banner.png.
+    const iconPath = path.resolve('build', 'icon.ico');
 
     const appInfo = packager.appInfo;
     const args = [

@@ -20,6 +20,8 @@ const ROUTES = [
   '/studio/design-agent',
   '/studio/apps',
   '/studio/ai-influencer',
+  '/legal/privacy',
+  '/legal/terms',
 ];
 
 function withAlternates(route, priority) {

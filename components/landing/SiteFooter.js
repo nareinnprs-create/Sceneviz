@@ -5,7 +5,7 @@ export default function SiteFooter({ copy, locale }) {
   return (
     <footer id="site-footer" className="w-full border-t border-divider bg-bg-page text-primary-text">
       <div className="mx-auto max-w-7xl px-6 py-16">
-        <div className="mb-14 grid grid-cols-2 gap-x-8 gap-y-12 md:grid-cols-4 lg:grid-cols-[1.4fr_repeat(4,minmax(0,1fr))]">
+        <div className="mb-14 grid grid-cols-2 gap-x-8 gap-y-12 md:grid-cols-4 lg:grid-cols-[1.4fr_repeat(5,minmax(0,1fr))]">
           <div className="col-span-2 space-y-5 md:col-span-4 lg:col-span-1">
             <a
               href={localizeHref(locale, '/')}
@@ -39,6 +39,30 @@ export default function SiteFooter({ copy, locale }) {
               </ul>
             </div>
           ))}
+
+          {/* Legal links are English-only docs, so unlike the JSON columns they
+              are hardcoded here and not localized. */}
+          <div className="min-w-0 space-y-5">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-primary-text">Legal</h3>
+            <ul className="space-y-3">
+              <li>
+                <a
+                  href="/legal/privacy"
+                  className="rounded text-sm text-secondary-text transition-colors hover:text-primary-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                >
+                  Privacy Policy
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/legal/terms"
+                  className="rounded text-sm text-secondary-text transition-colors hover:text-primary-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                >
+                  Terms of Service
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
 
         <div className="flex flex-col gap-4 border-t border-divider pt-8 text-sm text-secondary-text md:flex-row md:items-center md:justify-between">

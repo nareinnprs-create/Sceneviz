@@ -14,7 +14,8 @@ function translate(input) {
     negative_prompt: input.negative_prompt || "",
     width: input.width || 1024,
     height: input.height || 1024,
-    num_outputs: Math.min(4, Math.max(1, input.num_images || 1)),
+    // worker-sdxl expects num_images (1-2), not num_outputs.
+    num_images: Math.min(2, Math.max(1, input.num_images || 1)),
     seed: input.seed ?? -1,
   };
 }

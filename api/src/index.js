@@ -207,7 +207,9 @@ async function handleGenerate(request, env, key, model) {
   }
   if (!input.prompt) return err400("Field 'prompt' is required");
 
-  const cost = cfg.costCredits * input.num_outputs; // catalog: each image charges separately
+  // Client sends num_images (catalog: each image charges separately).
+  const numImages = Math.min(2, Math.max(1, Number(input.num_images) || 1));
+  const cost = cfg.costCredits * numImages; // shortcut: no refund on failed jobs, add refund when metering lands
   if ((key.credits || 0) < cost) return err403("Insufficient credits");
 
   // Rate limit after the free checks, before any GPU spend.
@@ -288,6 +290,8 @@ function extractOutputs(out) {
   if (Array.isArray(out)) return out.filter((u) => typeof u === "string");
   if (typeof out === "string") return out ? [out] : [];
   if (out && typeof out === "object") {
+    // worker-sdxl returns {image_url, images:[...]}; data URIs included.
+    if (Array.isArray(out.images)) return out.images.filter((u) => typeof u === "string");
     const url = out.image_url || out.url;
     return typeof url === "string" ? [url] : [];
   }

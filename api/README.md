@@ -63,6 +63,7 @@ Raw key is printed once; only the SHA-256 hash is stored (plus a 12-char display
 | POST | `/keys` | session | `{label}` → 201 `{id, key:'sk_live_…', label}`; raw key shown once; max 10/account → 409 over |
 | DELETE | `/keys/{id}` | session | own key only → 204; 404 otherwise |
 | GET | `/history?limit=20&cursor=<iso>` | session or key | `{items:[{id, model, status, cost_credits, output_urls:[…], created_at}], next_cursor}` — newest first; sessions + account keys see account-wide, legacy keys key-wide. `/api/v1/history` also served. |
+| GET | `/usage` | session or key | Own usage: `{totals:{generations, credits_spent}, by_model:[{model, count, credits}], recent_7d:[{day, count}]}` — computed from the `generations` table; scoped like `/history`. |
 | GET | `/models` (alias `/api/v1/models`) | key | catalog derived from `src/modelMap.js`: `{models:[{id, modality, cost_credits, params:[{name,type,default,…}]}]}` |
 | POST | `/mcp` | key (`x-api-key` or Bearer) | JSON-RPC 2.0 (streamable-HTTP style, JSON responses, no SSE): `initialize`, `tools/list`, `tools/call`; notifications → 202 |
 
@@ -79,7 +80,7 @@ Raw key is printed once; only the SHA-256 hash is stored (plus a 12-char display
 ## Endpoints (Phase B — generation, multi-provider)
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/api/v1/{model}` | submit → provider registry; `{status:'submitted', request_id, id}` |
+| POST | `/api/v1/{model}` | submit → provider registry; `{status:'submitted', request_id, id}`. Image models accept `sync: true` — the worker polls inline (4 attempts, 5 s apart, ≤ ~25 s) and answers `{status:'completed', output, outputs, request_id, id, sync:true}` with hosted `/media/*` URLs when the job finishes in budget; anything else returns the normal submitted shape and the client polls as usual. `sync: true` on a video model → 400 `Sync mode is only available for image models`. |
 | GET | `/api/v1/predictions/{request_id}/result` | provider poll → contract vocabulary; `{status, output, outputs, error?}` |
 | POST | `/api/v1/{other model-id}` | 501 until mapped in `src/modelMap.js` |
 
@@ -112,7 +113,13 @@ Per-key rate limit 60 req/60s on submits only (429) — the MCP `generate_image`
 goes through the same path; credits debited on successful submit, **no refund on
 failed jobs yet**. Every successful submit also inserts a `generations` row (status
 `submitted`) that the poll endpoint updates with terminal status + output URLs —
-`/history` serves that table; `usage` remains the ledger feed.
+`/history` serves that table; `usage` remains the ledger feed. Housekeeping (no
+cron worker): ~2% of submits prune `rate` rows older than 1 h, and ~2% of session
+mints prune expired `sessions` rows. Media TTLs (KV interim): `uploads/` expire
+after 24 h, generated `outputs/` after 30 days — when R2 lands, mirror both via
+bucket lifecycle rules (binding puts have no TTL API). Runway i2v caches uploaded
+input images in KV (`rwcache/{sha256(source)}` → asset id, 24 h) so repeated jobs
+skip the download + re-upload.
 
 **Live checks pending:** endpoints/field shapes were verified against provider docs
 (BFL + fal + Runway OpenAPI, Kling Open Platform), not against the real keys yet —
@@ -209,6 +216,8 @@ is_complete, suggestions, status}` before the media-poll fallback runs.
 | GET | `/workflow/run/{runId}/api-outputs` | owner | `{status, outputs:[{id, type, value, url}], url, error?}` |
 | DELETE | `/workflow/node-run/{id}` | owner | `{ok:true}` |
 | POST | `/workflow/architect` | key/session | `{prompt}` → template single-node workflow → `{request_id}` |
+| POST | `/workflow/estimate-cost` | key/session | `{model, duration?, num_images?, width?, height?}` → `{credits, currency:'credits', model}` — the exact `generateCore` charge (num_images × duration factor). Unknown model → 404. |
+| POST | `/workflow/calculate_dynamic_cost` | key/session | same computation → `{cost:{credits, usd}, credits, usd}` at $0.006/credit (500 credits = $2.99). Also accepts the builder's `{task_name, payload:{…}}` envelope; the legacy path `/app/calculate_dynamic_cost` is served identically. |
 | GET | `/workflow/poll-architect/{requestId}/result` | key/session | `{status:"completed", message, suggestions, workflow:{nodes, edges}}` |
 | POST | `/workflow/cloudfront-signed-url` | key/session | passthrough `{signed_url}` (outputs are public `/media/*` URLs) |
 
@@ -233,5 +242,6 @@ All under `/api/v1/creative-agent`, key or session (Bearer accepted):
 | POST | `/sessions/{id}/run-skill` | `{skill_name, inputs, …}` → `{job_id}` (template reply) |
 | GET | `/agent-skills` | static `[{name, inputs[]}]` |
 | GET | `/jobs/{id}/events?since=` | `{events:[{id, type, payload, job_id}], cursor, done:true, approved:null}` |
+| GET | `/jobs/{id}/events/stream` | SSE: `text/event-stream` — each stored event as one `data:` frame (same objects the poll returns), then `data: {"done":true}`, then close. Template-mode jobs complete at submit, so the stream is a single short burst. |
 | POST | `/jobs/{id}/approve|reject` | `{ok:true}` (v1 jobs never pause for approval) |
 | GET | `/account/balance` | `{balance, email}` |

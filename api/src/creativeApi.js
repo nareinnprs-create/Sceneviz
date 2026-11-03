@@ -256,6 +256,34 @@ async function jobEvents(request, env, auth, jobId) {
   });
 }
 
+/**
+ * SSE variant of jobEvents: GET …/jobs/{id}/events/stream → text/event-stream.
+ * Emits each stored event as one `data:` frame (same {id, job_id, type, payload}
+ * objects the poll returns), then a `data: {"done":true}` terminator, then
+ * closes. Template-mode jobs complete at submit time, so the stream is one
+ * short burst — no incremental updates in v1. `?since=` filters like the poll.
+ */
+async function jobEventStream(request, env, auth, jobId) {
+  const row = await env.DB.prepare("SELECT * FROM ca_jobs WHERE id = ?").bind(jobId).first();
+  if (!row || row.owner_id !== ownerId(auth)) return err404("Job not found");
+  let events = [];
+  try {
+    events = JSON.parse(row.events_json || "[]");
+  } catch {}
+  const since = Math.max(0, Number(new URL(request.url).searchParams.get("since")) || 0);
+  const frames = events
+    .filter((e) => (e.id || 0) > since)
+    .map((e) => `data: ${JSON.stringify(e)}\n\n`);
+  return new Response(`${frames.join("")}data: {"done":true}\n\n`, {
+    status: 200,
+    headers: {
+      ...CORS,
+      "content-type": "text/event-stream; charset=utf-8",
+      "cache-control": "no-cache",
+    },
+  });
+}
+
 async function jobAction(request, env, auth, jobId, action) {
   const row = await env.DB.prepare("SELECT * FROM ca_jobs WHERE id = ?").bind(jobId).first();
   if (!row || row.owner_id !== ownerId(auth)) return err404("Job not found");
@@ -317,6 +345,8 @@ export async function dispatch(request, env, auth, path) {
   if (method === "POST" && m) return runSkill(request, env, auth, m[1]);
   m = sub.match(/^\/jobs\/([^/]+)\/events$/);
   if (method === "GET" && m) return jobEvents(request, env, auth, m[1]);
+  m = sub.match(/^\/jobs\/([^/]+)\/events\/stream$/);
+  if (method === "GET" && m) return jobEventStream(request, env, auth, m[1]);
   m = sub.match(/^\/jobs\/([^/]+)\/(approve|reject)$/);
   if (method === "POST" && m) return jobAction(request, env, auth, m[1], m[2]);
 

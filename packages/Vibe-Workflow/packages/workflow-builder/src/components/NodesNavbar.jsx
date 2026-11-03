@@ -157,12 +157,15 @@ const NodesNavbar = ({ addNode, apiNodeModels, filterNodeTypes = null, nodeSchem
         { label: "Generate Audio", icon: <AiOutlineAudio />, hasSubmenu: true, id: "generate-audio" },
       ]
     },
-    {
-      label: "API Models",
-      items: [
-        { label: "Api Node", icon: <RiInputMethodLine />, hasSubmenu: true, id: "api-models" },
-      ]
-    }
+    // shortcut: API node category hidden — upstream registry
+    // (/workflow/api-node-schemas + /workflow/{id}/api-execute) is not
+    // implemented, so API nodes would 404. Re-enable when the registry ships.
+    // {
+    //   label: "API Models",
+    //   items: [
+    //     { label: "Api Node", icon: <RiInputMethodLine />, hasSubmenu: true, id: "api-models" },
+    //   ]
+    // }
   ];
 
   const getSubmenuItems = (id) => {
@@ -205,7 +208,8 @@ const NodesNavbar = ({ addNode, apiNodeModels, filterNodeTypes = null, nodeSchem
       ...text.map(m => ({ ...m, type: "textNode" })),
       ...audio.map(m => ({ ...m, type: "audioNode" })),
       ...textUtils.map(m => ({ ...m, type: m.id === "video-combiner" ? "vidConcatNode" : "concatNode" })),
-      ...apiNodeModels.map(m => ({ ...m, type: "apiNode" })),
+      // API nodes excluded from search while the registry is unimplemented — see menuStructure above.
+      // ...apiNodeModels.map(m => ({ ...m, type: "apiNode" })),
     ];
 
     const filtered = allModels.filter(m => m && m.name && m.name.toLowerCase().includes(searchQuery.toLowerCase()));

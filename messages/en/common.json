@@ -108,6 +108,8 @@
       "studioHref": "/studio",
       "modelsHref": "#models",
       "featuresHref": "#features",
+      "pricing": "Pricing",
+      "pricingHref": "#pricing",
       "tools": "Tools"
     },
     "hero": {
@@ -588,6 +590,32 @@
       ],
       "cta": "Open Studio",
       "href": "/studio"
+    },
+    "pricing": {
+      "eyebrow": "SIMPLE PRICING",
+      "title": "Credit packs, no subscription",
+      "description": "Buy credits once, generate until they run out, top up when you need more. Every pack unlocks the full studio and API.",
+      "getStarted": "Get started",
+      "getStartedHref": "/dashboard/login",
+      "popular": "Popular",
+      "creditsLabel": "credits",
+      "usdLabel": "USD",
+      "currencyNote": "Prices shown in your local currency (approximate) — checkout adapts automatically.",
+      "tiers": {
+        "starter": {
+          "name": "Starter",
+          "blurb": "For trying real workflows"
+        },
+        "growth": {
+          "name": "Growth",
+          "blurb": "For daily production work",
+          "popular": true
+        },
+        "scale": {
+          "name": "Scale",
+          "blurb": "For teams and heavy pipelines"
+        }
+      }
     }
   }
 }

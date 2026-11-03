@@ -45,6 +45,13 @@ export async function verifyPassword(password, stored) {
 
 /** Mints a 32-byte session token; only its SHA-256 goes into D1. */
 export async function createSession(env, accountId) {
+  // B6 occasional GC (~2% of calls; login + signup mint sessions): drop
+  // expired session rows — no cron worker. Best-effort.
+  if (Math.random() < 0.02) {
+    try {
+      await env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(new Date().toISOString()).run();
+    } catch {}
+  }
   const token = randomHex(32);
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
   await env.DB.prepare("INSERT INTO sessions (token_hash, account_id, expires_at) VALUES (?, ?, ?)")

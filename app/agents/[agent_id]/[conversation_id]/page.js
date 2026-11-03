@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import AgentChatClient from "../AgentChatClient";
+import { AgentProfile } from "ai-agent";
 import { API_BASE_URL } from "@/lib/apiConfig";
 
 /**
@@ -8,10 +9,12 @@ import { API_BASE_URL } from "@/lib/apiConfig";
  * the client chat component with existing conversation messages pre-loaded.
  *
  * URL: /agents/[agent_id]/[conversation_id]
+ * The reserved segment "profile" renders the agent profile view instead.
  */
 export async function generateMetadata({ params }) {
+  const { conversation_id } = await params;
   return {
-    title: `Agent Chat — Sceneviz`,
+    title: conversation_id === "profile" ? `Agent — Sceneviz` : `Agent Chat — Sceneviz`,
     alternates: {
       canonical: false,
     },
@@ -98,6 +101,14 @@ async function fetchUserData(apiKey) {
 
 export default async function AgentConversationPage({ params }) {
   const { agent_id, conversation_id } = await params;
+
+  // AiAgent's "View Profile" pushes /agents/{slug}/profile, which lands in
+  // this dynamic segment. Render the profile view (a client component that
+  // fetches agent details itself) instead of a chat for a fake conversation.
+  if (conversation_id === "profile") {
+    return <AgentProfile />;
+  }
+
   const cookieStore = await cookies();
   const apiKey = cookieStore.get("muapi_key")?.value;
 

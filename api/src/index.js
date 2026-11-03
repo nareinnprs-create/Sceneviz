@@ -14,7 +14,7 @@
  *   Sessions work on /me, /keys, /history; generation still requires a key.
  */
 
-import { MODEL_MAP, modelCatalog } from "./modelMap.js";
+import { MODEL_MAP, modelCatalog, costFor } from "./modelMap.js";
 import { PROVIDERS } from "./providers.js";
 import {
   sha256Hex,
@@ -112,8 +112,8 @@ async function handleMediaRead(request, env, url, path) {
 }
 
 // Phase B GPU bridge: per-key fixed-window rate limit on generation submits.
-// shortcut: rate rows accumulate one per active key-minute, no cleanup job —
-// table stays tiny; add a GC pass if usage grows unbounded.
+// Rate rows accumulate one per active key-minute; a ~2% GC pass inside
+// checkRateLimit drops windows older than 1 h (no cron worker).
 const RATE_WINDOW_MS = 60000;
 const RATE_LIMIT_PER_WINDOW = 60;
 
@@ -170,9 +170,11 @@ export default {
           handled = json(nodeSchemasRegistry());
         } else {
           const defMatch = path.match(/^\/workflow\/get-workflow-def\/([^/]+)$/);
+          const profileMatch = path.match(/^\/agents\/([^/]+)\/profile$/);
           const bySlug = path.match(/^\/agents\/(?:by-slug\/)?([^/]+)$/);
           const isAgentDetail =
-            bySlug && !["templates", "featured", "user", "skills", "suggest", "conversations"].includes(bySlug[1]);
+            (bySlug && !["templates", "featured", "user", "skills", "suggest", "conversations"].includes(bySlug[1])) ||
+            (profileMatch && profileMatch[1] !== "by-slug");
           if (defMatch || isAgentDetail) {
             let soft = null;
             try {
@@ -182,7 +184,8 @@ export default {
             if (defMatch) {
               handled = await getWorkflowDef(env, soft, defMatch[1]);
             } else if (!soft) {
-              handled = await getAgentBySlugPublic(env, null, bySlug[1]); // anonymous share view
+              const slug = profileMatch?.[1] ?? bySlug?.[1];
+              handled = await getAgentBySlugPublic(env, null, slug); // anonymous share view
             }
           }
         }
@@ -259,6 +262,8 @@ async function route(request, env, url, path, auth, ctx) {
   if (method === "GET" && (path === "/history" || path === "/api/v1/history")) {
     return handleHistory(request, env, auth);
   }
+  // B10 usage analytics (key or session).
+  if (method === "GET" && path === "/usage") return handleUsage(env, auth);
 
   // --- M7 studios (agents / workflows / creative agent) --------------------
   // Key or session everywhere; the run-submit handlers inside re-check for a
@@ -267,6 +272,10 @@ async function route(request, env, url, path, auth, ctx) {
     return agentsDispatch(request, env, auth, path);
   }
   if (path === "/workflow" || path.startsWith("/workflow/")) {
+    // B2 cost widgets — intercepted before the studio dispatcher (no model calls).
+    if (method === "POST" && (path === "/workflow/estimate-cost" || path === "/workflow/calculate_dynamic_cost")) {
+      return handleCostEstimate(request, path === "/workflow/estimate-cost");
+    }
     return workflowsDispatch(request, env, auth, path, ctx, key);
   }
   if (path === "/api/v1/creative-agent" || path.startsWith("/api/v1/creative-agent/")) {
@@ -322,6 +331,12 @@ async function route(request, env, url, path, auth, ctx) {
     const stored = request.headers.get("x-stored-key");
     const publicUrl = `${url.origin}${mediaPath(stored || "")}`;
     return json({ url: publicUrl, file_url: publicUrl });
+  }
+
+  // B2: the workflow builder's cost hook calls this legacy path (see
+  // useGenerationCost.jsx) — same computation as /workflow/calculate_dynamic_cost.
+  if (method === "POST" && path === "/app/calculate_dynamic_cost") {
+    return handleCostEstimate(request, false);
   }
 
   if (method === "GET" && path.startsWith("/media/")) {
@@ -627,6 +642,73 @@ async function handleHistory(request, env, auth) {
   return json({ items, next_cursor: more ? items[items.length - 1].created_at : null });
 }
 
+/**
+ * B10 usage analytics for the caller, computed from the generations table (the
+ * account-scoped mirror of the usage ledger — usage has no account_id column).
+ * Scope mirrors handleHistory: sessions + account keys see account-wide,
+ * legacy keys see key-wide.
+ */
+async function handleUsage(env, auth) {
+  const [scopeCol, scopeVal] = auth.session
+    ? ["account_id", auth.account.id]
+    : auth.key.account_id
+      ? ["account_id", auth.key.account_id]
+      : ["key_id", auth.key.id];
+  const totals = await env.DB.prepare(
+    `SELECT COUNT(*) AS n, COALESCE(SUM(cost_credits), 0) AS credits
+     FROM generations WHERE ${scopeCol} = ?`
+  )
+    .bind(scopeVal)
+    .first();
+  const byModel =
+    (
+      await env.DB.prepare(
+        `SELECT model, COUNT(*) AS count, COALESCE(SUM(cost_credits), 0) AS credits
+         FROM generations WHERE ${scopeCol} = ? GROUP BY model ORDER BY count DESC`
+      )
+        .bind(scopeVal)
+        .all()
+    ).results || [];
+  const since = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10); // 7 calendar days incl. today
+  const recent =
+    (
+      await env.DB.prepare(
+        `SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS count
+         FROM generations WHERE ${scopeCol} = ? AND substr(created_at, 1, 10) >= ?
+         GROUP BY day ORDER BY day`
+      )
+        .bind(scopeVal, since)
+        .all()
+    ).results || [];
+  return json({
+    totals: { generations: totals?.n || 0, credits_spent: totals?.credits || 0 },
+    by_model: byModel,
+    recent_7d: recent,
+  });
+}
+
+/**
+ * B2 cost widgets: quote the credits a generateCore submit would charge.
+ * Body: {model | task_name, duration?, num_images?, width?, height?}; the
+ * builder sends a {task_name, payload:{…}} envelope — payload fields merge in.
+ */
+async function handleCostEstimate(request, flat) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return err400("Expected a JSON body");
+  }
+  const input = { ...(body?.payload || {}), ...body };
+  const model = String(input.model || input.task_name || "");
+  const cfg = MODEL_MAP[model];
+  if (!cfg) return err404(`Unknown model '${model || "(missing)"}'`);
+  const credits = costFor(cfg, input);
+  if (flat) return json({ credits, currency: "credits", model });
+  const usd = Math.round(credits * 0.006 * 10000) / 10000; // 500 credits = $2.99 ≈ $0.006/credit
+  return json({ cost: { credits, usd }, credits, usd });
+}
+
 /* ------------------------------------------------------------- generation */
 
 async function handleGenerate(request, env, key, model) {
@@ -636,11 +718,15 @@ async function handleGenerate(request, env, key, model) {
   } catch {
     return err400("Expected a JSON body");
   }
-  return generateCore(env, key, model, body);
+  return generateCore(env, key, model, body, { origin: new URL(request.url).origin });
 }
 
-/** Submit pipeline shared by POST /api/v1/{model} and the MCP generate_image tool. */
-async function generateCore(env, key, model, body) {
+/**
+ * Submit pipeline shared by POST /api/v1/{model} and the MCP generate_image tool.
+ * opts.origin (optional) enables B4 sync mode — completed outputs are persisted
+ * to /media/* and returned inline.
+ */
+async function generateCore(env, key, model, body, opts = {}) {
   const cfg = MODEL_MAP[model];
   if (!cfg) {
     return err501(
@@ -650,6 +736,11 @@ async function generateCore(env, key, model, body) {
   }
   // Providers with an env-configured endpoint (RunPod today) stay 503 until provisioned.
   if (cfg.endpointEnv && !env[cfg.endpointEnv]) return err503("GPU endpoint not provisioned yet");
+
+  // B4: sync mode waits inline for the result — image latencies only.
+  if (body.sync === true && cfg.modality !== "image") {
+    return err400("Sync mode is only available for image models");
+  }
 
   let input;
   try {
@@ -661,11 +752,7 @@ async function generateCore(env, key, model, body) {
 
   // Client sends num_images (catalog: each image charges separately). Video
   // tiers price proportionally to duration, anchored at the 5s base.
-  const numImages = Math.min(2, Math.max(1, Number(input.num_images) || 1));
-  const durationFactor = cfg.durationProportional
-    ? Math.min(4, Math.max(1, Math.ceil((Number(input.duration) || 5) / 5)))
-    : 1;
-  const cost = cfg.costCredits * numImages * durationFactor; // shortcut: no refund on failed jobs, add refund when metering lands
+  const cost = costFor(cfg, input); // shortcut: no refund on failed jobs, add refund when metering lands
   if ((key.credits || 0) < cost) return err403("Insufficient credits");
 
   // Rate limit after the free checks, before any GPU spend.
@@ -704,15 +791,59 @@ async function generateCore(env, key, model, body) {
   }
   await env.DB.batch(stmts);
 
+  // B4 sync mode: bounded server-side poll (4 attempts, 5 s apart, ≤ ~25 s —
+  // Workers CPU/time limits) reusing the handleResult persist path. Anything
+  // not completed within budget falls through to the normal submitted shape
+  // and the client keeps polling /api/v1/predictions/{id}/result.
+  if (body.sync === true && opts.origin) {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      if (attempt) await new Promise((r) => setTimeout(r, 5000));
+      const { pollError, result, outputs } = await pollJob(env, cfg, job.id, opts.origin);
+      if (pollError || result.status !== "completed") break;
+      return json({
+        status: "completed",
+        outputs,
+        output: outputs[0] || null,
+        request_id: job.id,
+        id: job.id,
+        sync: true,
+      });
+    }
+  }
+
   // Contract §3.1: the client reads request_id || id — return both.
   return json({ status: "submitted", request_id: job.id, id: job.id });
 }
 
 /**
- * Poll: dispatch to the model's provider adapter, which maps its upstream
- * status into the contract vocabulary (§3.1, exact, case-insensitive).
- * Unknown job → 404. Non-terminal → "IN_PROGRESS" (client keeps polling
- * anything outside the success/failure sets).
+ * Shared poll core (handleResult + B4 sync mode): dispatch to the model's
+ * provider adapter, persist data-URI outputs on terminal states, and record
+ * the history row. Never throws — provider failures come back as {pollError}.
+ */
+async function pollJob(env, cfg, jobId, origin) {
+  let result;
+  try {
+    result = await PROVIDERS[cfg.provider].poll(env, cfg, jobId);
+  } catch (e) {
+    return { pollError: `Provider status failed: ${String(e?.message || e)}` };
+  }
+  let outputs = result.outputs || [];
+  // Record terminal state on the history row (matched by job_id; re-polls are
+  // idempotent — same values rewritten). Persist data-URI outputs to object
+  // storage → hosted /media/{key} URLs; provider-hosted https URLs pass through.
+  if (result.status !== "IN_PROGRESS") {
+    outputs = await persistOutputs(env, jobId, outputs, origin);
+    await env.DB.prepare("UPDATE generations SET status = ?, output_urls_json = ? WHERE job_id = ?")
+      .bind(result.status, JSON.stringify(outputs), jobId)
+      .run();
+  }
+  return { result, outputs };
+}
+
+/**
+ * Poll: non-terminal → "IN_PROGRESS" (client keeps polling anything outside
+ * the success/failure sets). Unknown job → 404. Response shape is the
+ * contract §3.1 poll envelope, unchanged.
  */
 async function handleResult(request, env, key, jobId) {
   const usage = await env.DB.prepare("SELECT model FROM usage WHERE job_id = ?").bind(jobId).first();
@@ -722,38 +853,29 @@ async function handleResult(request, env, key, jobId) {
   if (!cfg) return err503("Model is no longer served");
   if (cfg.endpointEnv && !env[cfg.endpointEnv]) return err503("GPU endpoint not provisioned yet");
 
-  let r;
-  try {
-    r = await PROVIDERS[cfg.provider].poll(env, cfg, jobId);
-  } catch (e) {
-    return json({ detail: { error: `Provider status failed: ${String(e?.message || e)}` } }, 502);
-  }
+  const { pollError, result, outputs } = await pollJob(env, cfg, jobId, new URL(request.url).origin);
+  if (pollError) return json({ detail: { error: pollError } }, 502);
 
-  let outputs = r.outputs || [];
-  const error = r.error;
-  // Record terminal state on the history row (matched by job_id; re-polls are
-  // idempotent — same values rewritten).
-  if (r.status !== "IN_PROGRESS") {
-    // Persist data-URI outputs to object storage → hosted /media/{key} URLs;
-    // provider-hosted https URLs pass through unchanged.
-    outputs = await persistOutputs(env, jobId, outputs, new URL(request.url).origin);
-    await env.DB.prepare("UPDATE generations SET status = ?, output_urls_json = ? WHERE job_id = ?")
-      .bind(r.status, JSON.stringify(outputs), jobId)
-      .run();
-  }
   // Client extraction order: outputs[0] || url || output.url → output covers all three.
   return json({
-    status: r.status,
+    status: result.status,
     request_id: jobId,
     id: jobId,
     output: outputs[0] || null,
     outputs,
-    ...(error ? { error } : {}),
+    ...(result.error ? { error: result.error } : {}),
   });
 }
 
 /** Fixed-window per-key counter; returns true when the request may proceed. */
 async function checkRateLimit(env, keyId) {
+  // B6 occasional GC (~2% of calls): drop rate rows older than 1 h — no cron
+  // worker; best-effort so a GC hiccup never fails a submit.
+  if (Math.random() < 0.02) {
+    try {
+      await env.DB.prepare("DELETE FROM rate WHERE window_start < ?").bind(Date.now() - 3600000).run();
+    } catch {}
+  }
   const windowStart = Math.floor(Date.now() / RATE_WINDOW_MS) * RATE_WINDOW_MS;
   const row = await env.DB.prepare(
     `INSERT INTO rate (key_id, window_start, count) VALUES (?, ?, 1)
@@ -787,9 +909,14 @@ async function handleUpload(request, env) {
 
   const contentType = file.type || "application/octet-stream";
   if (env.MEDIA) {
+    // shortcut: R2 binding puts have no TTL API — set lifecycle rules for
+    // uploads/ (24 h) and outputs/ (30 days) in the Cloudflare dashboard when
+    // R2 lands.
     await env.MEDIA.put(objectKey, file, { httpMetadata: { contentType } });
   } else if (env.MEDIA_KV) {
-    await env.MEDIA_KV.put(objectKey, await file.arrayBuffer(), { metadata: { contentType } });
+    // KV interim: uploads expire after 24 h; generated outputs/ keep 30 days.
+    const ttl = objectKey.startsWith("outputs/") ? 2592000 : 86400;
+    await env.MEDIA_KV.put(objectKey, await file.arrayBuffer(), { metadata: { contentType }, expirationTtl: ttl });
   } else {
     return err501("Object storage is not enabled yet.");
   }
@@ -814,9 +941,12 @@ async function persistOutputs(env, jobId, outputs, origin) {
       const contentType = (meta.split(";")[0] || "image/png").trim();
       const buf = Buffer.from(url.slice(commaIdx + 1), "base64");
       if (env.MEDIA) {
+        // shortcut: R2 lifecycle rules (30 days for outputs/) must be set in
+        // the dashboard — binding puts have no TTL API.
         await store.put(key, buf, { httpMetadata: { contentType } });
       } else {
-        await env.MEDIA_KV.put(key, buf, { metadata: { contentType } });
+        // KV interim: generated media expires after 30 days.
+        await env.MEDIA_KV.put(key, buf, { metadata: { contentType }, expirationTtl: 2592000 });
       }
       out.push(`${origin}/media/${key}`);
     } else {

@@ -55,7 +55,7 @@ export function McpCliStudio() {
     cards.appendChild(featureCard({
         tag: 'MCP',
         title: 'sceneviz-mcp-server',
-        body: 'Connect Claude, Cursor, Windsurf, and any MCP-compatible assistant to 500+ generative models. Hosted endpoint — no install. 19 structured tools with input/output schemas, async polling, and account management.',
+        body: 'Connect Claude, Cursor, Windsurf, and any MCP-compatible assistant to Sceneviz generative models. New models added weekly (beta). Hosted endpoint - no install. 19 structured tools with input/output schemas, async polling, and account management.',
         code: `claude mcp add --transport http sceneviz \\\n  ${MCP_BASE_URL} \\\n  --header "Authorization: Bearer YOUR_KEY"`,
         link: DOCS_URL,
         linkLabel: 'View sceneviz-mcp-server docs',

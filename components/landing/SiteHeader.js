@@ -94,6 +94,7 @@ export default function SiteHeader({ copy, locale, theme, onThemeChange }) {
     { label: copy.models, href: copy.modelsHref },
     { label: copy.tools, href: '#tools' },
     { label: copy.features, href: copy.featuresHref },
+    ...(copy.pricing ? [{ label: copy.pricing, href: copy.pricingHref || '#pricing' }] : []),
   ];
 
   return (

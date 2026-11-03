@@ -140,6 +140,7 @@ served models.
 | `duration` | int | 5 | seconds; Kling 5/10, Seedance 2–12, Runway 2–10 |
 | `num_images` | int | 1 | clamped to 1–2, images only (each charges separately) |
 | `seed` | int | random | reproducibility |
+| `sync` | bool | false | image models only — wait inline for the result (see below) |
 
 **Request — video model example** (`runway-image-to-video`):
 
@@ -152,6 +153,18 @@ served models.
 ```json
 { "status": "submitted", "request_id": "c0a80101-7ab2-4c1e-9f3a-1b2c3d4e5f60", "id": "c0a80101-7ab2-4c1e-9f3a-1b2c3d4e5f60" }
 ```
+
+**Sync mode (image models):** add `"sync": true` and the API polls the provider
+inline for up to ~25 s. If the job completes within that budget you get the
+finished result in one round trip:
+
+```json
+{ "status": "completed", "outputs": ["https://api.opraiz.com/media/outputs/…/0.png"], "output": "https://api.opraiz.com/media/outputs/…/0.png", "request_id": "c0a80101-…", "id": "c0a80101-…", "sync": true }
+```
+
+If it is still running when the budget expires, the normal `{"status": "submitted", …}`
+shape is returned and you poll as usual. `sync: true` on a video model returns
+`400 { "detail": { "error": "Sync mode is only available for image models" } }`.
 
 **Error responses:**
 
@@ -195,6 +208,53 @@ Poll a submitted job every ~2 s until a terminal status arrives.
 
 Unknown request ids return `404 { "detail": "Unknown request id" }`. HTTP ≥500 is transient —
 retry; 4xx should abort the poll loop.
+
+### POST /workflow/estimate-cost
+
+Quote the credits a generation would charge before submitting — the exact formula
+the submit endpoint bills (`cost_credits × num_images × duration factor`):
+
+```bash
+curl -X POST https://api.opraiz.com/workflow/estimate-cost \
+  -H "x-api-key: sk_live_YOUR_KEY" -H "content-type: application/json" \
+  -d '{"model":"flux-dev-image","num_images":2}'
+```
+
+```json
+{ "credits": 10, "currency": "credits", "model": "flux-dev-image" }
+```
+
+`duration` scales video quotes (each 5 s block multiplies the base cost, max ×4);
+`width`/`height` are accepted for validation parity but do not change the price.
+Unknown model ids return `404`.
+
+### POST /workflow/calculate_dynamic_cost
+
+Same computation, wrapper shape used by the workflow builder's cost widgets:
+
+```json
+{ "cost": { "credits": 10, "usd": 0.06 }, "credits": 10, "usd": 0.06 }
+```
+
+`usd` converts at $0.006 per credit (500 credits = $2.99). Also accepts the
+builder's `{ "task_name": "<model>", "payload": { … } }` envelope; the legacy
+path `POST /app/calculate_dynamic_cost` behaves identically.
+
+### GET /usage
+
+Usage analytics for the authenticated caller (API key or dashboard session).
+Sessions and account keys see account-wide numbers; legacy keys see their own:
+
+```json
+{
+  "totals": { "generations": 42, "credits_spent": 310 },
+  "by_model": [ { "model": "sdxl-image", "count": 30, "credits": 60 } ],
+  "recent_7d": [ { "day": "2026-11-01", "count": 5 } ]
+}
+```
+
+`recent_7d` covers the last 7 calendar days including today; days with no
+generations are absent.
 
 ### Uploads & media
 
@@ -291,14 +351,30 @@ detail in [`api/README.md`](../api/README.md#studios-m7--agents--workflows--crea
   (outputs are public `/media/*` objects; nothing to sign).
 - **Creative agent** (`/api/v1/creative-agent/*`): design-canvas sessions,
   message snapshots, asset registry, chat/run-skill jobs and the
-  `GET /jobs/{id}/events` poll. Jobs complete synchronously with template
-  replies in v1 (info + text events, `done: true`).
+  `GET /jobs/{id}/events` poll — plus an SSE variant at
+  `GET /jobs/{id}/events/stream` (`text/event-stream`: one `data:` frame per
+  stored event, then `data: {"done":true}`, then close; template-mode jobs
+  complete at submit, so the stream is a single short burst). Jobs complete
+  synchronously with template replies in v1 (info + text events, `done: true`).
 
 New D1 tables (idempotent in `api/schema.sql` — re-run before deploy):
 `agents`, `agent_conversations`, `agent_messages`, `agent_jobs`, `workflows`,
 `workflow_runs`, `ca_sessions`, `ca_jobs`, `ca_assets`.
 
 ## Changelog
+
+### November 2026 — cost endpoints, sync mode, usage analytics
+
+- `POST /workflow/estimate-cost` and `POST /workflow/calculate_dynamic_cost`
+  (legacy `/app/calculate_dynamic_cost` alias) quote the exact submit charge in
+  credits and USD.
+- `POST /api/v1/{model}` accepts `sync: true` on image models — the API waits
+  up to ~25 s and returns finished hosted URLs inline when the job completes.
+- `GET /usage` returns totals, per-model splits and last-7-day daily counts.
+- Creative-agent jobs expose `GET /jobs/{id}/events/stream` (SSE).
+- Media housekeeping: KV uploads expire after 24 h, generated outputs after
+  30 days; rate/session tables self-prune opportunistically; Runway i2v input
+  images are de-duplicated through a 24 h asset cache.
 
 ### November 2026 — Phase A/B launch
 

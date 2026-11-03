@@ -9,6 +9,7 @@ import ToolsSection from './ToolsSection';
 import ModelsSection from './ModelsSection';
 import ApiSection from './ApiSection';
 import FeaturesSection from './FeaturesSection';
+import PricingSection from './PricingSection';
 import SiteFooter from './SiteFooter';
 
 export default function Landing({ locale = 'en' }) {
@@ -29,6 +30,7 @@ export default function Landing({ locale = 'en' }) {
         <ModelsSection copy={copy.models} locale={locale} />
         <ApiSection copy={copy.apiSection} locale={locale} />
         <FeaturesSection copy={copy.features} locale={locale} />
+        <PricingSection copy={copy.pricing} />
       </main>
       <SiteFooter copy={copy.footer} locale={locale} />
     </ThemeShell>

@@ -19,7 +19,7 @@ export const useGenerationCost = (selectedModel, formValues) => {
         payload: formValues
       })
       .then((response) => {
-        setGenerationCost(response.data.cost);
+        setGenerationCost(response.data.cost?.usd ?? response.data.cost);
         setIsRefreshingCost(false);
       })
       .catch((error) => {

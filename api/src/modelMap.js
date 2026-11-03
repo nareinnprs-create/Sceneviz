@@ -312,6 +312,19 @@ export const MODEL_MAP = {
   },
 };
 
+/**
+ * Credit cost for a request — the single formula generateCore charges with and
+ * the /workflow cost endpoints quote: per-image tiers charge num_images
+ * (clamped 1-2), video tiers scale with duration (anchored at the 5s base).
+ */
+export function costFor(cfg, body) {
+  const numImages = Math.min(2, Math.max(1, Number(body.num_images) || 1));
+  const durationFactor = cfg.durationProportional
+    ? Math.min(4, Math.max(1, Math.ceil((Number(body.duration) || 5) / 5)))
+    : 1;
+  return cfg.costCredits * numImages * durationFactor;
+}
+
 /** Public catalog: GET /models (and the MCP list_models tool). */
 export function modelCatalog() {
   return {

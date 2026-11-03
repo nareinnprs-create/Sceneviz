@@ -108,6 +108,8 @@
       "studioHref": "/studio",
       "modelsHref": "#models",
       "featuresHref": "#features",
+      "pricing": "定价",
+      "pricingHref": "#pricing",
       "tools": "工具"
     },
     "hero": {
@@ -588,6 +590,32 @@
       ],
       "cta": "打开工作室",
       "href": "/studio"
+    },
+    "pricing": {
+      "eyebrow": "简单定价",
+      "title": "积分套餐，无需订阅",
+      "description": "一次性购买积分，用完为止，需要时再充值。每个套餐均可使用完整工作室和 API。",
+      "getStarted": "立即开始",
+      "getStartedHref": "/dashboard/login",
+      "popular": "热门",
+      "creditsLabel": "积分",
+      "usdLabel": "美元",
+      "currencyNote": "价格按你的当地货币近似显示——结账时自动换算。",
+      "tiers": {
+        "starter": {
+          "name": "入门版",
+          "blurb": "适合体验真实工作流"
+        },
+        "growth": {
+          "name": "成长版",
+          "blurb": "适合日常生产使用",
+          "popular": true
+        },
+        "scale": {
+          "name": "团队版",
+          "blurb": "适合团队与重度流水线"
+        }
+      }
     }
   }
 }

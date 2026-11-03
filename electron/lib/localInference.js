@@ -277,10 +277,10 @@ async function downloadBinary(mainWindow) {
 
             if (!chosen) {
                 if (process.platform === 'darwin' && process.arch !== 'arm64') {
-                    throw new Error('Local inference on macOS only supports Apple Silicon (M1/M2/M3/M4). Mac Intel is not supported by stable-diffusion.cpp upstream.');
+                    throw new Error('Local inference on macOS only supports Apple Silicon (M1/M2/M3/M4). Mac Intel is not supported by the stable-diffusion.cpp project.');
                 }
                 if (process.platform === 'linux' && process.arch === 'arm64') {
-                    throw new Error('No upstream stable-diffusion.cpp binary found for linux-arm64. Install a build that bundles local-ai/linux-arm64/bin or provide the binary manually.');
+                    throw new Error('No stable-diffusion.cpp binary found for linux-arm64. Install a build that bundles local-ai/linux-arm64/bin or provide the binary manually.');
                 }
                 const available = lastSeen.join(', ') || '(none)';
                 throw new Error(`No binary found for ${process.platform}-${process.arch} in the last 15 releases. Latest release assets: ${available}`);

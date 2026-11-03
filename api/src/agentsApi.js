@@ -637,6 +637,8 @@ export async function dispatch(request, env, auth, path) {
   if (method === "POST" && m) return likeAgent(env, auth, m[1], url.searchParams.get("is_like") !== "false");
   m = path.match(/^\/agents\/by-slug\/([^/]+)\/preview-realign$/);
   if (method === "POST" && m) return previewRealign(request, env, auth, m[1]);
+  m = path.match(/^\/agents\/([^/]+)\/profile$/);
+  if (method === "GET" && m && m[1] !== "by-slug") return getBySlug(env, auth, m[1]);
   m = path.match(/^\/agents\/by-slug\/([^/]+)\/([^/]+)$/);
   if (method === "GET" && m && m[1] !== "by-slug") return getConversation(env, auth, m[1], m[2]);
 

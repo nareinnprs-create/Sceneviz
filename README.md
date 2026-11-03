@@ -391,7 +391,7 @@ Every image you upload is saved locally (URL + thumbnail) so you never upload th
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) (v18+)
-- A [Sceneviz access key](https://sceneviz.opraiz.com/access-keys). Copy the generated key value into the app; do not enter the key name or label.
+- A [Sceneviz API key](https://sceneviz.opraiz.com/dashboard) — sign in, open **API Keys**, and copy the generated key value into the app; do not enter the key name or label.
 
 ### Setup
 

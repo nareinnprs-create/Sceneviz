@@ -13,6 +13,12 @@ import { submitJob, getJob } from "./gpu.js";
 
 const TIMEOUT_MS = 15000;
 
+/** SHA-256 hex of a string (local copy — importing auth.js would risk an import cycle). */
+async function sha256Hex(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 async function jfetch(url, init) {
   return fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
 }
@@ -250,6 +256,13 @@ const runway = {
    * presigned URL, then reference the asset id in promptImage.
    */
   async uploadImageAsset(env, source) {
+    // B7: identical sources resolve to the same Runway asset id for 24 h —
+    // skip the download + re-upload (KV interim cache).
+    const cacheKey = env.MEDIA_KV ? `rwcache/${await sha256Hex(source)}` : null;
+    if (cacheKey) {
+      const hit = await env.MEDIA_KV.get(cacheKey);
+      if (hit) return hit;
+    }
     let contentType = "image/png";
     let bytes;
     if (source.startsWith("data:")) {
@@ -273,17 +286,19 @@ const runway = {
       },
       body: JSON.stringify({ name: `sceneviz-${Date.now()}.${ext}`, contentType }),
     });
-    if (!created?.id || !created?.uploadUrl) {
-      throw new Error(`Runway asset creation failed: ${JSON.stringify(created).slice(0, 200)}`);
+    const createdOut = created.ok ? await created.json() : null; // jfetch returns the raw Response — parse before reading ids
+    if (!createdOut?.id || !createdOut?.uploadUrl) {
+      throw new Error(`Runway asset creation failed: ${JSON.stringify(createdOut || (await created.text().catch(() => ""))).slice(0, 200)}`);
     }
-    const up = await fetch(created.uploadUrl, {
+    const up = await fetch(createdOut.uploadUrl, {
       method: "PUT",
       headers: { "content-type": contentType },
       body: bytes,
       signal: AbortSignal.timeout(30000),
     });
     if (!up.ok) throw new Error(`Runway asset upload failed (${up.status})`);
-    return created.id;
+    if (cacheKey) await env.MEDIA_KV.put(cacheKey, createdOut.id, { expirationTtl: 86400 });
+    return createdOut.id;
   },
   async submit(env, cfg, input) {
     if (!env.RUNWAY_API_KEY) throw new Error("RUNWAY_API_KEY secret is not set");

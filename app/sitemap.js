@@ -3,6 +3,7 @@ const BASE = 'https://sceneviz.opraiz.com';
 const ROUTES = [
   '/',
   '/agents',
+  '/docs',
   '/studio',
   '/studio/image',
   '/studio/video',

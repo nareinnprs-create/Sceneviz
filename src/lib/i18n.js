@@ -273,8 +273,8 @@ const translations = {
         'welcome.tagline': 'Ideas into moving worlds.',
         'welcome.cta': 'Open Studio',
         'welcome.footer': '© 2026 Opraiz Technology Pvt Ltd',
-        'welcome.modelsTitle': '500+ models',
-        'welcome.modelsBody': 'FLUX, Kling, Veo, Seedance and more — hundreds of state-of-the-art models in one workspace.',
+        'welcome.modelsTitle': 'State-of-the-art image models',
+        'welcome.modelsBody': 'FLUX, SDXL and more — flagship image generation in beta, with new models added weekly.',
         'welcome.mediaTitle': 'Image, video, audio',
         'welcome.mediaBody': 'Generate stills, cinematic shots, sound and lip-sync without leaving your studio.',
         'welcome.flowTitle': 'Workflows & agents',
@@ -285,7 +285,7 @@ const translations = {
         // MCP & CLI page
         'mcp.tagline': 'For developers & AI agents',
         'mcp.title': 'MCP & CLI',
-        'mcp.subtitle': 'Use Sceneviz from your terminal, your IDE, or any MCP-compatible assistant. Generate cinematic images, videos, and audio across 500+ models — without leaving your workflow.',
+        'mcp.subtitle': 'Use Sceneviz from your terminal, your IDE, or any MCP-compatible assistant. Generate images with state-of-the-art models — without leaving your workflow. (Video and audio studios are coming soon in beta.)',
         'mcp.quickStart': 'Quick start',
     },
     zh: {
@@ -512,8 +512,8 @@ const translations = {
         'welcome.tagline': '让创意成为动态世界。',
         'welcome.cta': '打开工作台',
         'welcome.footer': '© 2026 Opraiz Technology Pvt Ltd',
-        'welcome.modelsTitle': '500+ 模型',
-        'welcome.modelsBody': 'FLUX、Kling、Veo、Seedance 等 — 数百个前沿模型，尽在一个工作区。',
+        'welcome.modelsTitle': '前沿图像模型',
+        'welcome.modelsBody': 'FLUX、SDXL 等 — 旗舰图像生成已开启 Beta 测试，每周新增模型。',
         'welcome.mediaTitle': '图像、视频、音频',
         'welcome.mediaBody': '生成静态图像、电影级镜头、音频与唇形同步，无需切换工具。',
         'welcome.flowTitle': '工作流与智能体',
@@ -524,7 +524,7 @@ const translations = {
         // MCP & CLI page
         'mcp.tagline': '面向开发者与 AI 智能体',
         'mcp.title': 'MCP & CLI',
-        'mcp.subtitle': '在终端、IDE 或任何兼容 MCP 的助手中使用 Sceneviz。跨 500+ 模型生成电影级图像、视频和音频 — 无需离开您的工作流。',
+        'mcp.subtitle': '在终端、IDE 或任何兼容 MCP 的助手中使用 Sceneviz。使用前沿模型生成图像 — 无需离开您的工作流。（视频与音频工作室即将在 Beta 中推出。）',
         'mcp.quickStart': '快速开始',
     },
 };

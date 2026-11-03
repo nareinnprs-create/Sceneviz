@@ -10,8 +10,10 @@ import ModelParameterControls from "./ModelParameterControls.jsx";
 import MobileGenerationActions, {
   GenerationCopyButtons,
 } from "./MobileGenerationActions.jsx";
+import { SERVED_IMAGE_MODELS, isServedImageEndpoint } from "../../../../lib/servedModels.js";
 import {
   t2iModels,
+  i2iModels,
   getAspectRatiosForModel,
   getResolutionsForModel,
   getQualityFieldForModel,
@@ -656,7 +658,33 @@ const PROVIDER_LOGOS = {
 
 const invertLogos = ['openai', 'blackforest', 'runway', 'ideogram', 'lightricks', 'grok'];
 
-function ModelDropdown({ selectedModel, onSelect, onClose, copy }) {
+// ─── Served-model filtering (catalog honesty) ────────────────────────────────
+// The backend only serves a few text-to-image endpoints right now (beta), so
+// the picker only offers catalog entries whose t2i variant is actually served.
+// The full catalog in models.js stays untouched — it is the future catalog;
+// unserved entries are simply not offered here.
+const modelRequestEndpoint = (model) => model.endpoint || model.id;
+const servedT2iModels = t2iModels.filter((model) =>
+  isServedImageEndpoint(modelRequestEndpoint(model)),
+);
+// Default order follows the SERVED_IMAGE_MODELS registry (cheapest first).
+const defaultServedT2I =
+  SERVED_IMAGE_MODELS.map((served) =>
+    servedT2iModels.find((model) => modelRequestEndpoint(model) === served.endpoint),
+  ).find(Boolean) ||
+  servedT2iModels[0] ||
+  t2iModels[0];
+const servedPickerEntries = imageModelPickerEntries.filter((entry) => {
+  const t2iVariant = entry.variantsByMode.t2i;
+  return t2iVariant ? isServedImageEndpoint(modelRequestEndpoint(t2iVariant.model)) : false;
+});
+// Image-to-image variants are served only if at least one i2i endpoint is live.
+const servedI2IExists = i2iModels.some((model) =>
+  isServedImageEndpoint(modelRequestEndpoint(model)),
+);
+
+
+function ModelDropdown({ selectedModel, onSelect, onClose, copy, entries }) {
   const t = copy.modelDropdown;
   const [search, setSearch] = useState("");
   const selectedEntry = imageModelPickerEntryByVariantId.get(selectedModel);
@@ -664,19 +692,19 @@ function ModelDropdown({ selectedModel, onSelect, onClose, copy }) {
     {
       id: "all",
       label: t.categoryAll,
-      entries: imageModelPickerEntries,
+      entries,
     },
     {
       id: "t2i",
       label: t.categoryT2I,
-      entries: imageModelPickerEntries.filter((entry) => entry.variantsByMode.t2i),
+      entries: entries.filter((entry) => entry.variantsByMode.t2i),
     },
     {
       id: "i2i",
       label: t.categoryI2I,
-      entries: imageModelPickerEntries.filter((entry) => entry.variantsByMode.i2i),
+      entries: entries.filter((entry) => entry.variantsByMode.i2i),
     },
-  ];
+  ].filter((category) => category.entries.length > 0);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedProvider, setSelectedProvider] = useState("all");
   const activeCategory = modelCategories.find((category) => category.id === selectedCategory) || modelCategories[0];
@@ -986,20 +1014,20 @@ export default function ImageStudio({
   }, [PERSIST_KEY]);
 
   // ── Model state ─────────────────────────────────────────────────────────
-  const initialFamily = imageModelCatalog.familyByVariantId.get(t2iModels[0].id);
+  const initialFamily = imageModelCatalog.familyByVariantId.get(defaultServedT2I.id);
   const [imageMode, setImageMode] = useState(false); // false=t2i, true=i2i
-  const [selectedModelId, setSelectedModelId] = useState(t2iModels[0].id);
+  const [selectedModelId, setSelectedModelId] = useState(defaultServedT2I.id);
   const [selectedFamilyId, setSelectedFamilyId] = useState(initialFamily.id);
   const [selectedAr, setSelectedAr] = useState(
-    t2iModels[0].inputs?.aspect_ratio?.default || "1:1",
+    defaultServedT2I.inputs?.aspect_ratio?.default || "1:1",
   );
   const [selectedQuality, setSelectedQuality] = useState(() => {
-    const resolutions = getResolutionsForModel(t2iModels[0].id);
+    const resolutions = getResolutionsForModel(defaultServedT2I.id);
     return resolutions[0] || null;
   });
   const [selectedEffect, setSelectedEffect] = useState("");
   const [modelParameterValues, setModelParameterValues] = useState(() =>
-    createModelParameterValues(t2iModels[0]),
+    createModelParameterValues(defaultServedT2I),
   );
 
   // ── Prompt / upload state ───────────────────────────────────────────────
@@ -1062,11 +1090,19 @@ export default function ImageStudio({
       const stored = localStorage.getItem(PERSIST_KEY);
       if (stored) {
         const data = JSON.parse(stored);
-        if (data.imageMode !== undefined) setImageMode(data.imageMode);
+        // Only restore i2i mode when an i2i endpoint is actually served.
+        if (data.imageMode !== undefined) setImageMode(data.imageMode && servedI2IExists);
         if (data.selectedModelId) {
           const restoredFamily = imageModelCatalog.familyByVariantId.get(data.selectedModelId);
           const restoredVariant = imageModelCatalog.variantById.get(data.selectedModelId);
-          if (restoredFamily) {
+          const restoredModel = restoredVariant?.model;
+          // Catalog honesty: a persisted model the backend no longer serves
+          // (or never served) falls back to the default served model.
+          if (
+            restoredFamily &&
+            restoredModel &&
+            isServedImageEndpoint(modelRequestEndpoint(restoredModel))
+          ) {
             setSelectedModelId(data.selectedModelId);
             setSelectedFamilyId(restoredFamily.id);
             setModelParameterValues(
@@ -1341,7 +1377,7 @@ export default function ImageStudio({
     setPrompt("");
     setUploadedImageUrls([]);
     setImageMode(false);
-    const firstT2I = t2iModels[0];
+    const firstT2I = defaultServedT2I;
     const ars = getAspectRatiosForModel(firstT2I.id);
     const resolutions = getResolutionsForModel(firstT2I.id);
     const family = imageModelCatalog.familyByVariantId.get(firstT2I.id);
@@ -1721,6 +1757,7 @@ export default function ImageStudio({
                       onSelect={handleModelSelect}
                       onClose={() => setDropdownOpen(null)}
                       copy={copy}
+                      entries={servedPickerEntries}
                     />
                   </PromptPopover>
                 )}

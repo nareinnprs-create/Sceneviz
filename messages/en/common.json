@@ -34,7 +34,10 @@
     "settings": "Settings",
     "dropHere": "Drop your media here",
     "dropHereHint": "Images, videos, or audio files",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "comingSoonBadge": "Beta",
+    "comingSoonSuffix": "is in beta — coming soon",
+    "comingSoonBody": "This studio is part of the Sceneviz roadmap. Image generation is live today, and new studios open as each backend goes live."
   },
   "settingsModal": {
     "title": "Settings",
@@ -63,12 +66,12 @@
     "missingKeyError": "Please enter your API key",
     "submit": "Get Started",
     "needKey": "Need a key?",
-    "getOneFree": "Get one free →"
+    "getOneFree": "Get your key →"
   },
   "landing": {
     "meta": {
-      "title": "Sceneviz — AI image, video & audio studio · Ideas into moving worlds.",
-      "description": "Sceneviz is an all-in-one AI studio for image, video, audio and lip-sync generation. Run 500+ models — FLUX, Seedance, Kling, Veo and more — from one workspace."
+      "title": "Sceneviz — AI image studio (beta) · Ideas into moving worlds.",
+      "description": "Sceneviz is an all-in-one AI creative studio. Image generation is live in beta with state-of-the-art models; video, audio and lip-sync are coming soon. One API key, no subscription."
     },
     "announcement": {
       "ariaLabel": "Announcements",
@@ -79,7 +82,7 @@
           "href": "/studio"
         },
         {
-          "text": "500+ AI models, one API",
+          "text": "State-of-the-art image models, one API",
           "cta": "Explore models",
           "href": "#models"
         },
@@ -111,13 +114,13 @@
       "badge": "Image · Video · Audio · Lip-sync",
       "titleLead": "Ideas into",
       "titleAccent": "moving worlds.",
-      "subtitle": "Sceneviz is an all-in-one studio for AI image, video, audio and lip-sync generation. Hundreds of state-of-the-art models, one workspace, no subscription.",
+      "subtitle": "Sceneviz is an all-in-one studio for AI creation. Flagship image generation is live in beta — video, audio and lip-sync are coming soon. One workspace, no subscription.",
       "primaryCta": "Start Creating",
       "primaryHref": "/studio",
       "secondaryCta": "Explore models",
       "secondaryHref": "#models",
       "stats": [
-        "500+ AI models",
+        "Flagship image models",
         "One API key",
         "No subscription"
       ]
@@ -126,8 +129,8 @@
       "ariaLabel": "Platform highlights",
       "items": [
         {
-          "value": "500+",
-          "label": "AI models in one workspace"
+          "value": "Live",
+          "label": "image generation in beta"
         },
         {
           "value": "No",
@@ -195,8 +198,8 @@
     },
     "models": {
       "eyebrow": "FEATURED MODELS",
-      "title": "Every modality, one studio",
-      "description": "Image, video and audio models side by side. Pick a model, tune its parameters and generate.",
+      "title": "Flagship models, one studio",
+      "description": "Flagship image models are live today. The wider catalog below is our roadmap — each studio opens as its backend goes live (beta).",
       "browse": "Browse all models",
       "browseHref": "/studio",
       "badges": {
@@ -456,7 +459,7 @@
       "items": [
         {
           "title": "AI Image Generator",
-          "description": "Text to image with FLUX, Seedream, Qwen and more.",
+          "description": "Text to image with flagship models like FLUX and SDXL.",
           "href": "/studio/image",
           "icon": "image"
         },
@@ -544,8 +547,8 @@
       "eyebrow": "BY THE NUMBERS",
       "items": [
         {
-          "value": "500+",
-          "label": "AI models"
+          "value": "Live",
+          "label": "image generation (beta)"
         },
         {
           "value": "16",

@@ -1,16 +1,31 @@
 /**
- * Sceneviz API — Stage 2 backend (Phase A shell + Phase B GPU bridge).
+ * Sceneviz API — Stage 2 backend (Phase A shell + Phase B GPU bridge + WS4 accounts).
  * Runs on Cloudflare Workers at https://api.opraiz.com.
  *
  * Contract: docs/stage2-api-contract.md — response shapes follow the
  * FastAPI-style conventions the client expects ({detail} / {detail:{error}}).
  *
- * Auth: BYOK. Keys are issued by api/issue-key.mjs; only SHA-256 hashes are
- * stored. Clients send `x-api-key`. 401 = missing/unknown key, 403 = disabled.
+ * Auth:
+ * - API keys (BYOK + self-serve): issued by api/issue-key.mjs or POST /keys;
+ *   only SHA-256 hashes are stored. Clients send `x-api-key` or
+ *   `Authorization: Bearer sk_live_…`. 401 = missing/unknown key, 403 = disabled.
+ * - Account sessions (dashboard): POST /auth/* mints a 32-byte hex token
+ *   (30-day expiry; only its SHA-256 is stored), sent as `Authorization: Bearer <token>`.
+ *   Sessions work on /me, /keys, /history; generation still requires a key.
  */
 
-import { MODEL_MAP } from "./modelMap.js";
+import { MODEL_MAP, modelCatalog } from "./modelMap.js";
 import { submitJob, getJob } from "./gpu.js";
+import {
+  sha256Hex,
+  randomHex,
+  hashPassword,
+  verifyPassword,
+  createSession,
+  getSession,
+  deleteSession,
+} from "./auth.js";
+import { handleMcp } from "./mcp.js";
 
 const JSON_HDR = { "content-type": "application/json; charset=utf-8" };
 
@@ -35,11 +50,6 @@ const err404 = (m = "Not found") => json({ detail: m }, 404);
 const err501 = (m) => json({ detail: { error: m } }, 501);
 const err503 = (m) => json({ detail: { error: m } }, 503);
 
-async function sha256Hex(text) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
 function uuid() {
   return crypto.randomUUID();
 }
@@ -55,6 +65,10 @@ function mediaPath(key) {
 const RATE_WINDOW_MS = 60000;
 const RATE_LIMIT_PER_WINDOW = 60;
 
+// Self-serve keys (WS4).
+const MAX_KEYS_PER_ACCOUNT = 10;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -64,6 +78,10 @@ export default {
 
     if (path === "/healthz") return json({ ok: true, service: "sceneviz-api", stage: "A" });
 
+    // Open endpoints (no credential): account signup/login mint sessions.
+    if (request.method === "POST" && path === "/auth/signup") return handleSignup(request, env);
+    if (request.method === "POST" && path === "/auth/login") return handleLogin(request, env);
+
     let auth;
     try {
       auth = await authenticate(request, env);
@@ -71,10 +89,9 @@ export default {
       return json({ detail: { error: String(e?.message || e) } }, 500);
     }
     if (!auth.ok) return auth.response;
-    const key = auth.key;
 
     try {
-      return await route(request, env, url, path, key);
+      return await route(request, env, url, path, auth);
     } catch (e) {
       return json({ detail: { error: String(e?.message || e) } }, 500);
     }
@@ -92,9 +109,19 @@ async function authenticate(request, env) {
 
   if (!provided) return { ok: false, response: err401() };
 
+  // Dashboard sessions: raw 32-byte hex tokens (keys are sk_live_-prefixed), so
+  // only 64-hex credentials hit the sessions table — keys skip the extra read.
+  if (/^[0-9a-f]{64}$/i.test(provided)) {
+    const session = await getSession(env, provided);
+    if (session) {
+      if (session.status !== "active") return { ok: false, response: err403("Account is disabled") };
+      return { ok: true, key: null, session, account: session };
+    }
+  }
+
   const key_hash = await sha256Hex(provided);
   const row = await env.DB.prepare(
-    "SELECT id, key_hash, label, credits, status FROM keys WHERE key_hash = ?"
+    "SELECT id, key_hash, label, credits, status, account_id, key_hint, created_at FROM keys WHERE key_hash = ?"
   )
     .bind(key_hash)
     .first();
@@ -102,13 +129,34 @@ async function authenticate(request, env) {
   if (!row) return { ok: false, response: err401() };
   if (row.status !== "active") return { ok: false, response: err403("Key is disabled") };
 
-  return { ok: true, key: row };
+  return { ok: true, key: row, session: null, account: null };
 }
 
 /* ----------------------------------------------------------------- routes */
 
-async function route(request, env, url, path, key) {
+async function route(request, env, url, path, auth) {
   const method = request.method;
+  const key = auth.key;
+
+  // --- accounts / dashboard (session auth unless noted) --------------------
+  if (method === "POST" && path === "/auth/logout") return handleLogout(request, env, auth);
+  if (method === "GET" && path === "/me") return handleMe(env, auth);
+  if (method === "POST" && path === "/keys") return handleCreateKey(request, env, auth);
+  const keyDel = path.match(/^\/keys\/([^/]+)$/);
+  if (method === "DELETE" && keyDel) return handleDeleteKey(env, auth, keyDel[1]);
+  // /history and /api/v1/history both served (contract legacy path + dashboard).
+  if (method === "GET" && (path === "/history" || path === "/api/v1/history")) {
+    return handleHistory(request, env, auth);
+  }
+
+  // Everything below requires a raw API key — sessions cannot generate.
+  if (!key) return json({ detail: { error: "API key required for this endpoint" } }, 401);
+
+  // --- MCP (JSON-RPC 2.0 over HTTP; key auth) ------------------------------
+  if (path === "/mcp") {
+    if (method !== "POST") return json({ detail: { error: "MCP endpoint accepts POST only" } }, 405);
+    return await handleMcp(request, env, key, generateCore);
+  }
 
   // --- account -----------------------------------------------------------
   if (method === "GET" && path === "/api/v1/account/balance") {
@@ -116,12 +164,9 @@ async function route(request, env, url, path, key) {
   }
 
   // --- model catalog -----------------------------------------------------
-  if (method === "GET" && path === "/api/v1/models") {
-    // Phase A: catalog metadata only. Generation arrives in Phase B.
-    return json({
-      models: [],
-      note: "Opraiz API Phase A — catalog populated as GPU models come online (Phase B+).",
-    });
+  if (method === "GET" && (path === "/api/v1/models" || path === "/models")) {
+    // Derived from modelMap — the single truth the UI renders (WS3).
+    return json(modelCatalog());
   }
 
   // --- uploads (require the MEDIA R2 binding — enable R2 first) ----------
@@ -170,7 +215,13 @@ async function route(request, env, url, path, key) {
   const genMatch = path.match(/^\/api\/v1\/([^/]+)$/);
   if (method === "POST" && genMatch) {
     const model = genMatch[1];
-    if (model === "predictions" || model === "upload_file" || model === "account" || model === "models") {
+    if (
+      model === "predictions" ||
+      model === "upload_file" ||
+      model === "account" ||
+      model === "models" ||
+      model === "history"
+    ) {
       return err404();
     }
     return await handleGenerate(request, env, key, model);
@@ -184,9 +235,174 @@ async function route(request, env, url, path, key) {
   return err404();
 }
 
+/* ------------------------------------------------------- accounts (WS4) */
+
+async function handleSignup(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return err400("Expected a JSON body");
+  }
+  const email = String(body?.email || "").trim().toLowerCase();
+  const password = String(body?.password || "");
+  if (!EMAIL_RE.test(email)) return err400("A valid email address is required");
+  if (password.length < 8) return err400("Password must be at least 8 characters");
+
+  const id = uuid();
+  try {
+    // shortcut: no email provider yet — accounts are auto-verified (email_verified=1);
+    // add verification mail before advertising signup publicly.
+    // shortcut: open signup auto-grants DEFAULT_KEY_CREDITS (parity with manual
+    // issuance); set the var to 0 or gate signups if abuse becomes a concern.
+    await env.DB.prepare("INSERT INTO accounts (id, email, pw_hash, credits) VALUES (?, ?, ?, ?)")
+      .bind(id, email, await hashPassword(password), Number(env.DEFAULT_KEY_CREDITS || 0))
+      .run();
+  } catch (e) {
+    if (String(e?.message || e).includes("UNIQUE")) {
+      return json({ detail: { error: "Email already registered" } }, 409);
+    }
+    throw e;
+  }
+  const { token } = await createSession(env, id);
+  return json({ account_id: id, session_token: token });
+}
+
+async function handleLogin(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return err400("Expected a JSON body");
+  }
+  const email = String(body?.email || "").trim().toLowerCase();
+  const row = await env.DB.prepare("SELECT id, pw_hash, status FROM accounts WHERE email = ?")
+    .bind(email)
+    .first();
+  const okPassword = row && (await verifyPassword(String(body?.password || ""), row.pw_hash));
+  if (!okPassword) return json({ detail: { error: "Invalid email or password" } }, 401);
+  if (row.status !== "active") return err403("Account is disabled");
+  const { token, expiresAt } = await createSession(env, row.id);
+  return json({ account_id: row.id, session_token: token, expires_at: expiresAt });
+}
+
+async function handleLogout(request, env, auth) {
+  if (!auth.session) return err401();
+  await deleteSession(env, auth.session.token_hash);
+  return new Response(null, { status: 204, headers: CORS });
+}
+
+async function handleMe(env, auth) {
+  if (auth.session) {
+    const a = auth.account;
+    const keys =
+      (
+        await env.DB.prepare(
+          "SELECT id, label, key_hint, created_at FROM keys WHERE account_id = ? ORDER BY created_at DESC"
+        )
+          .bind(a.id)
+          .all()
+      ).results || [];
+    return json({
+      account: { id: a.id, email: a.email, credits: a.credits, created_at: a.created_at },
+      keys: keys.map((k) => ({
+        id: k.id,
+        label: k.label,
+        key_hint: k.key_hint || null,
+        created_at: k.created_at,
+      })),
+      created_at: a.created_at,
+    });
+  }
+  // Key-auth /me (legacy manually-issued keys, and account keys used as keys):
+  // no account object — sessions are the account view.
+  const k = auth.key;
+  return json({
+    account: null,
+    keys: [{ id: k.id, label: k.label, key_hint: k.key_hint || null, created_at: k.created_at }],
+    created_at: k.created_at,
+  });
+}
+
+async function handleCreateKey(request, env, auth) {
+  if (!auth.session) return err401();
+  let body = {};
+  try {
+    body = await request.json();
+  } catch {}
+  const label = String(body?.label || "").slice(0, 100);
+  const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM keys WHERE account_id = ?")
+    .bind(auth.account.id)
+    .first();
+  if ((n?.n || 0) >= MAX_KEYS_PER_ACCOUNT) {
+    return json({ detail: { error: `Key limit reached (${MAX_KEYS_PER_ACCOUNT} per account)` } }, 409);
+  }
+  const raw = `sk_live_${randomHex(24)}`;
+  const id = uuid();
+  // shortcut: the new key's credits mirror the account balance at creation
+  // (one active key per account assumed); shared pools land with payments (M3).
+  await env.DB.prepare(
+    "INSERT INTO keys (id, key_hash, label, credits, status, account_id, key_hint) VALUES (?, ?, ?, ?, 'active', ?, ?)"
+  )
+    .bind(id, await sha256Hex(raw), label, auth.account.credits || 0, auth.account.id, raw.slice(0, 12))
+    .run();
+  return json({ id, key: raw, label }, 201);
+}
+
+async function handleDeleteKey(env, auth, keyId) {
+  if (!auth.session) return err401();
+  const row = await env.DB.prepare("SELECT id, account_id FROM keys WHERE id = ?").bind(keyId).first();
+  if (!row || row.account_id !== auth.account.id) return err404("Key not found");
+  await env.DB.prepare("DELETE FROM keys WHERE id = ?").bind(keyId).run();
+  return new Response(null, { status: 204, headers: CORS });
+}
+
+async function handleHistory(request, env, auth) {
+  const params = new URL(request.url).searchParams;
+  const limit = Math.min(100, Math.max(1, Number(params.get("limit")) || 20));
+  const cursor = params.get("cursor");
+  // Scope: sessions and account keys see account-wide history; legacy keys see their own.
+  const [scopeCol, scopeVal] = auth.session
+    ? ["account_id", auth.account.id]
+    : auth.key.account_id
+      ? ["account_id", auth.key.account_id]
+      : ["key_id", auth.key.id];
+  const rows =
+    (
+      await env.DB.prepare(
+        `SELECT id, model, status, cost_credits, output_urls_json, created_at
+         FROM generations WHERE ${scopeCol} = ? ${cursor ? "AND created_at < ?" : ""}
+         ORDER BY created_at DESC LIMIT ?`
+      )
+        .bind(...(cursor ? [scopeVal, cursor, limit + 1] : [scopeVal, limit + 1]))
+        .all()
+    ).results || [];
+  const more = rows.length > limit;
+  const items = rows.slice(0, limit).map((r) => ({
+    id: r.id,
+    model: r.model,
+    status: r.status,
+    cost_credits: r.cost_credits,
+    output_urls: JSON.parse(r.output_urls_json || "[]"),
+    created_at: r.created_at,
+  }));
+  return json({ items, next_cursor: more ? items[items.length - 1].created_at : null });
+}
+
 /* ------------------------------------------------------------- generation */
 
 async function handleGenerate(request, env, key, model) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return err400("Expected a JSON body");
+  }
+  return generateCore(env, key, model, body);
+}
+
+/** Submit pipeline shared by POST /api/v1/{model} and the MCP generate_image tool. */
+async function generateCore(env, key, model, body) {
   const cfg = MODEL_MAP[model];
   if (!cfg) {
     return err501(
@@ -201,7 +417,7 @@ async function handleGenerate(request, env, key, model) {
 
   let input;
   try {
-    input = cfg.translate(await request.json());
+    input = cfg.translate(body);
   } catch {
     return err400("Expected a JSON body");
   }
@@ -226,7 +442,7 @@ async function handleGenerate(request, env, key, model) {
   if (!job?.id) return json({ detail: { error: "RunPod did not return a job id" } }, 502);
 
   // shortcut: no refund on failed jobs, add refund when metering lands
-  await env.DB.batch([
+  const stmts = [
     env.DB.prepare("UPDATE keys SET credits = credits - ? WHERE id = ?").bind(cost, key.id),
     env.DB.prepare("INSERT INTO usage (id, key_id, model, credits, job_id) VALUES (?, ?, ?, ?, ?)").bind(
       uuid(),
@@ -235,7 +451,18 @@ async function handleGenerate(request, env, key, model) {
       cost,
       job.id
     ),
-  ]);
+    // WS5 user-facing history row (usage stays the ledger feed). created_at is
+    // an explicit ISO string so history cursors compare correctly.
+    env.DB.prepare(
+      `INSERT INTO generations (id, key_id, account_id, job_id, model, status, cost_credits, input_json, output_urls_json, created_at)
+       VALUES (?, ?, ?, ?, ?, 'submitted', ?, ?, '[]', ?)`
+    ).bind(uuid(), key.id, key.account_id || null, job.id, model, cost, JSON.stringify(input), new Date().toISOString()),
+  ];
+  // Account-linked keys mirror the debit onto accounts.credits (what /me shows).
+  if (key.account_id) {
+    stmts.push(env.DB.prepare("UPDATE accounts SET credits = credits - ? WHERE id = ?").bind(cost, key.account_id));
+  }
+  await env.DB.batch(stmts);
 
   // Contract §3.1: the client reads request_id || id — return both.
   return json({ status: "submitted", request_id: job.id, id: job.id });
@@ -275,6 +502,13 @@ async function handleResult(env, key, jobId) {
   }
 
   const outputs = extractOutputs(job.output);
+  // Record terminal state on the history row (matched by job_id; re-polls are
+  // idempotent — same values rewritten).
+  if (status !== "IN_PROGRESS") {
+    await env.DB.prepare("UPDATE generations SET status = ?, output_urls_json = ? WHERE job_id = ?")
+      .bind(status, JSON.stringify(outputs), jobId)
+      .run();
+  }
   // Client extraction order: outputs[0] || url || output.url → output covers all three.
   return json({
     status,

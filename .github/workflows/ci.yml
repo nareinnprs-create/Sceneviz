@@ -1,0 +1,55 @@
+# Sceneviz CI: web lint+build, live API contract tests, API Worker deploy dry-run.
+# The contract suite is SKIP-mode safe: it passes with or without TEST_API_KEY.
+
+name: CI
+
+on:
+  push:
+    branches: [main, rebrand/sceneviz]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-build:
+    name: lint + build (web)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  api-contract:
+    name: api contract tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run contract suite (SKIP mode without TEST_API_KEY)
+        run: node api/contract-test.mjs
+        env:
+          API_BASE: https://api.opraiz.com
+          TEST_KEY: ${{ secrets.TEST_API_KEY }}
+
+  deploy-dry:
+    name: wrangler deploy dry-run (api worker)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # --dry-run builds the Worker bundle only; it exits before any upload,
+      # so no Cloudflare token is needed.
+      - run: npx wrangler deploy --dry-run --config api/wrangler.jsonc

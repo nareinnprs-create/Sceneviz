@@ -1,6 +1,6 @@
 # Sceneviz — Ideas into moving worlds.
 
-> **A complete AI creative studio for image, video, cinema, and lip sync.** Generate AI images and videos using 500+ state-of-the-art models across 14 studios — no content filters, no closed ecosystem, no subscription fees.
+> **Beta — currently image generation.** Sceneviz is an all-in-one AI creative studio: generate AI images today with state-of-the-art models (FLUX, SDXL and more). The video, cinema, audio, and lip-sync studios in the UI are on the roadmap and open as their backends go live — no content filters, no closed ecosystem, no subscription fees.
 
 ---
 

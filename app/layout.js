@@ -20,8 +20,8 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata = {
   metadataBase: new URL('https://sceneviz.opraiz.com'),
-  title: 'Sceneviz — AI image, video & audio studio · Ideas into moving worlds.',
-  description: 'Sceneviz is an all-in-one AI studio for image, video, audio and lip-sync generation. Run 500+ models — FLUX, Seedance, Kling, Veo and more — from one workspace.',
+  title: 'Sceneviz — AI image studio (beta) · Ideas into moving worlds.',
+  description: 'Sceneviz is an AI image studio in public beta — flagship FLUX and SDXL models, new models added weekly. Ideas into moving worlds.',
   keywords: ['Sceneviz', 'AI image generator', 'AI video generator', 'AI audio generator', 'AI creative studio', 'text to video', 'image to video', 'AI models'],
   icons: {
     icon: '/icon.svg',
@@ -35,8 +35,8 @@ export const metadata = {
     },
   },
   openGraph: {
-    title: 'Sceneviz — AI image, video & audio studio · Ideas into moving worlds.',
-    description: 'Sceneviz is an all-in-one AI studio for image, video, audio and lip-sync generation. Run 500+ models — FLUX, Seedance, Kling, Veo and more — from one workspace.',
+    title: 'Sceneviz — AI image studio (beta) · Ideas into moving worlds.',
+    description: 'Sceneviz is an AI image studio in public beta — flagship FLUX and SDXL models, new models added weekly. Ideas into moving worlds.',
     siteName: 'Sceneviz',
     type: 'website',
     url: 'https://sceneviz.opraiz.com',
@@ -50,8 +50,8 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Sceneviz — AI image, video & audio studio · Ideas into moving worlds.',
-    description: 'Sceneviz is an all-in-one AI studio for image, video, audio and lip-sync generation. Run 500+ models — FLUX, Seedance, Kling, Veo and more — from one workspace.',
+    title: 'Sceneviz — AI image studio (beta) · Ideas into moving worlds.',
+    description: 'Sceneviz is an AI image studio in public beta — flagship FLUX and SDXL models, new models added weekly. Ideas into moving worlds.',
     images: ['/opengraph-image.png'],
   },
 };

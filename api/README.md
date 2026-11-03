@@ -6,6 +6,8 @@ Contract: [`../docs/stage2-api-contract.md`](../docs/stage2-api-contract.md)
 ## Layout
 - `wrangler.jsonc` — Worker config: custom domain `api.opraiz.com`, D1 `sceneviz`, R2 `sceneviz-media`
 - `src/index.js` — Worker (auth, accounts, keys, history, catalog, MCP, uploads, media, generation, billing)
+- `src/providers.js` — provider adapters (runpod/bfl/kling/fal/runway): submit + poll, contract status mapping
+- `src/modelMap.js` — model id → provider + cost + input translation (drives GET /models)
 - `src/auth.js` — PBKDF2 password hashing + session-token helpers (WebCrypto only)
 - `src/mcp.js` — minimal streamable-HTTP MCP server (JSON-RPC 2.0)
 - `src/billing.js` — M3 credit packs, Dodo checkout creation, webhook signature verification, idempotent credit grants
@@ -71,16 +73,49 @@ Raw key is printed once; only the SHA-256 hash is stored (plus a 12-char display
 | POST | `/api/v1/upload_file` | same, returns `{url, file_url}` |
 | GET | `/media/{key}` | public read |
 
-## Endpoints (Phase B — GPU bridge)
+## Endpoints (Phase B — generation, multi-provider)
 | Method | Path | Notes |
 |---|---|---|
-| POST | `/api/v1/flux-dev-image` | submit → RunPod; `{status:'submitted', request_id, id}` |
-| POST | `/api/v1/flux-schnell-image` | same |
-| POST | `/api/v1/sdxl-image` | same |
-| GET | `/api/v1/predictions/{request_id}/result` | RunPod status → contract vocabulary; `{status, output, outputs}` |
+| POST | `/api/v1/{model}` | submit → provider registry; `{status:'submitted', request_id, id}` |
+| GET | `/api/v1/predictions/{request_id}/result` | provider poll → contract vocabulary; `{status, output, outputs, error?}` |
 | POST | `/api/v1/{other model-id}` | 501 until mapped in `src/modelMap.js` |
 
-Phase B details: model map in `src/modelMap.js` (endpoint env `RUNPOD_ENDPOINT_ID_IMAGE`, credit cost, input translation, `/models` catalog); RunPod calls in `src/gpu.js`; per-key rate limit 60 req/60s on submits only (429) — the MCP `generate_image` tool goes through the same path; credits debited on successful submit, **no refund on failed jobs yet**. Every successful submit also inserts a `generations` row (status `submitted`), and the poll endpoint updates it with terminal status + output URLs — that table is what `/history` serves; `usage` remains the ledger feed. Requires `RUNPOD_API_KEY` secret and `RUNPOD_ENDPOINT_ID_IMAGE` var in `wrangler.jsonc`.
+**Live models** (`src/modelMap.js` — costs flagged for pricing review):
+
+| Model | Provider | Cost | Inputs |
+|---|---|---|---|
+| `flux-dev-image` | BFL `/v1/flux-dev` | 5 | prompt, width, height, seed, num_images 1-2 |
+| `flux-schnell-image` | BFL `/v1/flux-2-klein-4b` (schnell retired from BFL; klein 4b serves the id) | 2 | same as flux-dev |
+| `flux-kontext-pro-t2i` | BFL `/v1/flux-kontext-pro` | 4 | prompt, aspect_ratio, optional image_url (i2i) |
+| `flux-kontext-max-t2i` | BFL `/v1/flux-kontext-max` | 8 | same as kontext-pro |
+| `sdxl-image` | RunPod worker-sdxl | 2 | prompt, negative_prompt, width, height, num_images, seed |
+| `kling-v2.1-master-t2v` | Kling-branded video via Runway (`kling3.0_standard`) | 80 | prompt, aspect_ratio 16:9/9:16/1:1, duration 2–10 |
+| `kling-v2.1-master-i2v` | Image-to-video via Runway (`gen4_turbo`) | 80 | + image_url (start frame) |
+| `kling-v2.5-turbo-pro-t2v` | Kling-branded video via Runway (`kling3.0_pro`) | 100 | same as kling t2v |
+| `seedance-pro-t2v` | Seedance 2 via Runway (`seedance2`) | 60 | prompt, aspect_ratio 16:9/9:16, duration 2-10 |
+| `seedance-lite-t2v` | Seedance 2 fast via Runway (`seedance2_fast`) | 60 | same as seedance-pro-t2v |
+| `seedance-pro-i2v` | Image-to-video via Runway (`gen4_turbo`) | 60 | + image_url (start frame) |
+| `runway-text-to-video` | Runway `/v1/text_to_video` (`gen4.5`) | 90 | prompt, aspect_ratio 16:9/9:16, duration 2-10 |
+| `runway-image-to-video` | Runway `/v1/image_to_video` (`gen4_turbo`) | 90 | prompt, image_url, aspect_ratio, duration 2-10 |
+
+Video entries ignore `num_images` (always 1× cost). Secrets: `RUNPOD_API_KEY`,
+`BFL_API_KEY` (`x-key` header), `KLING_API_KEY` (Bearer, `api-singapore.klingai.com`),
+`SEEDANCE_API_KEY` (fal `Authorization: Key`, `queue.fal.run`), `RUNWAY_API_KEY`
+(Bearer + `X-Runway-Version: 2024-11-06`, `api.dev.runwayml.com`) — all referenced as
+`env.<NAME>` only. Provider adapters (`{submit, poll}` per provider, status mapped to
+the contract vocabulary) live in `src/providers.js`; RunPod calls stay in `src/gpu.js`.
+
+Per-key rate limit 60 req/60s on submits only (429) — the MCP `generate_image` tool
+goes through the same path; credits debited on successful submit, **no refund on
+failed jobs yet**. Every successful submit also inserts a `generations` row (status
+`submitted`) that the poll endpoint updates with terminal status + output URLs —
+`/history` serves that table; `usage` remains the ledger feed.
+
+**Live checks pending:** endpoints/field shapes were verified against provider docs
+(BFL + fal + Runway OpenAPI, Kling Open Platform), not against the real keys yet —
+run one cheap generation per model through api.opraiz.com before announcing
+(Kling `mode`/`duration` combos, fal COMPLETED response url path, and Runway
+`gen4.5` on `/v1/text_to_video` are the spots most likely to need a tweak).
 
 ## Billing (M3 — prepaid credits)
 

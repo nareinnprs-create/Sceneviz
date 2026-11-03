@@ -15,7 +15,7 @@
  */
 
 import { MODEL_MAP, modelCatalog } from "./modelMap.js";
-import { submitJob, getJob } from "./gpu.js";
+import { PROVIDERS } from "./providers.js";
 import {
   sha256Hex,
   randomHex,
@@ -508,19 +508,17 @@ async function generateCore(env, key, model, body) {
   if (!cfg) {
     return err501(
       `Model '${model}' is not yet served by the Opraiz API. ` +
-        `Currently served: ${Object.keys(MODEL_MAP).join(", ")} — more come online in Phase B+ ` +
-        `(see docs/stage2-runpod-plan.md).`
+        `Currently served: ${Object.keys(MODEL_MAP).join(", ")} — see GET /models.`
     );
   }
-
-  const endpointId = env[cfg.endpointEnv];
-  if (!endpointId) return err503("GPU endpoint not provisioned yet");
+  // Providers with an env-configured endpoint (RunPod today) stay 503 until provisioned.
+  if (cfg.endpointEnv && !env[cfg.endpointEnv]) return err503("GPU endpoint not provisioned yet");
 
   let input;
   try {
     input = cfg.translate(body);
-  } catch {
-    return err400("Expected a JSON body");
+  } catch (e) {
+    return err400(String(e?.message || "Expected a JSON body"));
   }
   if (!input.prompt) return err400("Field 'prompt' is required");
 
@@ -536,11 +534,11 @@ async function generateCore(env, key, model, body) {
 
   let job;
   try {
-    job = await submitJob(env, endpointId, input);
+    job = await PROVIDERS[cfg.provider].submit(env, cfg, input);
   } catch (e) {
-    return json({ detail: { error: `GPU submit failed: ${String(e?.message || e)}` } }, 502);
+    return json({ detail: { error: `Provider submit failed: ${String(e?.message || e)}` } }, 502);
   }
-  if (!job?.id) return json({ detail: { error: "RunPod did not return a job id" } }, 502);
+  if (!job?.id) return json({ detail: { error: "Provider did not return a job id" } }, 502);
 
   // shortcut: no refund on failed jobs, add refund when metering lands
   const stmts = [
@@ -570,69 +568,47 @@ async function generateCore(env, key, model, body) {
 }
 
 /**
- * Poll: translate RunPod status into the contract vocabulary (§3.1, exact,
- * case-insensitive). Unknown job → 404. Non-terminal → "IN_PROGRESS"
- * (client keeps polling anything outside the success/failure sets).
+ * Poll: dispatch to the model's provider adapter, which maps its upstream
+ * status into the contract vocabulary (§3.1, exact, case-insensitive).
+ * Unknown job → 404. Non-terminal → "IN_PROGRESS" (client keeps polling
+ * anything outside the success/failure sets).
  */
 async function handleResult(request, env, key, jobId) {
   const usage = await env.DB.prepare("SELECT model FROM usage WHERE job_id = ?").bind(jobId).first();
   if (!usage) return err404("Unknown request id");
 
   const cfg = MODEL_MAP[usage.model];
-  const endpointId = cfg && env[cfg.endpointEnv];
-  if (!endpointId) return err503("GPU endpoint not provisioned yet");
+  if (!cfg) return err503("Model is no longer served");
+  if (cfg.endpointEnv && !env[cfg.endpointEnv]) return err503("GPU endpoint not provisioned yet");
 
-  let job;
+  let r;
   try {
-    job = await getJob(env, endpointId, jobId);
+    r = await PROVIDERS[cfg.provider].poll(env, cfg, jobId);
   } catch (e) {
-    return json({ detail: { error: `GPU status failed: ${String(e?.message || e)}` } }, 502);
+    return json({ detail: { error: `Provider status failed: ${String(e?.message || e)}` } }, 502);
   }
 
-  const rp = String(job.status || "").toUpperCase();
-  let status = "IN_PROGRESS";
-  let error;
-  if (rp === "COMPLETED") {
-    status = "completed";
-  } else if (rp === "FAILED" || rp === "TIMED_OUT") {
-    status = "failed";
-    error = (typeof job.output === "string" && job.output) || `RunPod job ${rp.toLowerCase()}`;
-  } else if (rp === "CANCELLED") {
-    status = "cancelled";
-    error = "Job was cancelled";
-  }
-
-  let outputs = extractOutputs(job.output);
+  let outputs = r.outputs || [];
+  const error = r.error;
   // Record terminal state on the history row (matched by job_id; re-polls are
   // idempotent — same values rewritten).
-  if (status !== "IN_PROGRESS") {
-    // Persist data-URI outputs to object storage → hosted /media/{key} URLs.
+  if (r.status !== "IN_PROGRESS") {
+    // Persist data-URI outputs to object storage → hosted /media/{key} URLs;
+    // provider-hosted https URLs pass through unchanged.
     outputs = await persistOutputs(env, jobId, outputs, new URL(request.url).origin);
     await env.DB.prepare("UPDATE generations SET status = ?, output_urls_json = ? WHERE job_id = ?")
-      .bind(status, JSON.stringify(outputs), jobId)
+      .bind(r.status, JSON.stringify(outputs), jobId)
       .run();
   }
   // Client extraction order: outputs[0] || url || output.url → output covers all three.
   return json({
-    status,
+    status: r.status,
     request_id: jobId,
     id: jobId,
     output: outputs[0] || null,
     outputs,
     ...(error ? { error } : {}),
   });
-}
-
-function extractOutputs(out) {
-  if (Array.isArray(out)) return out.filter((u) => typeof u === "string");
-  if (typeof out === "string") return out ? [out] : [];
-  if (out && typeof out === "object") {
-    // worker-sdxl returns {image_url, images:[...]}; data URIs included.
-    if (Array.isArray(out.images)) return out.images.filter((u) => typeof u === "string");
-    const url = out.image_url || out.url;
-    return typeof url === "string" ? [url] : [];
-  }
-  return [];
 }
 
 /** Fixed-window per-key counter; returns true when the request may proceed. */

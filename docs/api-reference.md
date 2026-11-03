@@ -52,17 +52,26 @@ Result polling is not rate-limited. Poll every ~2 s.
 
 ## Credits
 
-Each generation debits credits from your key's balance at submit time. Cost per output image:
+Each generation debits credits from your key's balance at submit time.
+Images charge per output (`num_images` 1–2, cost × num_images); videos are one
+output per job (cost × 1):
 
-| Model | Cost per image |
-|---|---|
-| `flux-dev-image` | 4 credits |
-| `flux-schnell-image` | 2 credits |
-| `sdxl-image` | 2 credits |
+| Model | Cost | Modality |
+|---|---|---|
+| `flux-schnell-image` | 2 | image (BFL FLUX.2 klein 4b) |
+| `sdxl-image` | 2 | image (RunPod) |
+| `flux-kontext-pro-t2i` | 4 | image (+ optional input image edit) |
+| `flux-dev-image` | 5 | image |
+| `flux-kontext-max-t2i` | 8 | image |
+| `seedance-pro-t2v` / `seedance-lite-t2v` / `seedance-pro-i2v` | 60 | video |
+| `kling-v2.1-master-t2v` / `kling-v2.1-master-i2v` | 80 | video |
+| `kling-v2.5-turbo-pro-t2v` | 100 | video |
+| `runway-text-to-video` / `runway-image-to-video` | 90 | video |
 
-`num_images` may be 1–2; each image charges separately (`cost = model cost × num_images`).
-Check your balance any time via `GET /api/v1/account/balance`. Note: credits are debited on
-successful submit; automatic refunds for failed jobs are not yet available.
+`GET /api/v1/models` always returns the live list with per-model `cost_credits`
+and accepted parameters. Check your balance any time via
+`GET /api/v1/account/balance`. Note: credits are debited on successful submit;
+automatic refunds for failed jobs are not yet available.
 
 ---
 
@@ -86,18 +95,28 @@ Current credit balance for the key.
 
 ### GET /api/v1/models
 
-Model catalog. `models` is an array of live model ids — it grows as GPU models come online.
+Model catalog — the live list of served models, with provider, credit cost and
+accepted parameters per model:
 
 ```json
-{ "models": [], "note": "Opraiz API Phase A — catalog populated as GPU models come online (Phase B+)." }
+{
+  "models": [
+    { "id": "sdxl-image", "modality": "image", "provider": "runpod", "cost_credits": 2, "params": [ { "name": "prompt", "type": "string", "required": true }, … ] }
+  ]
+}
 ```
 
 ### POST /api/v1/{model} — submit a generation
 
-Replace `{model}` with one of the live model ids: `flux-dev-image`, `flux-schnell-image`,
-`sdxl-image`. Unknown ids return `501` with the list of currently served models.
+Replace `{model}` with one of the live model ids from `GET /api/v1/models`
+(images: `flux-dev-image`, `flux-schnell-image`, `flux-kontext-pro-t2i`,
+`flux-kontext-max-t2i`, `sdxl-image`; videos: `kling-v2.1-master-t2v`,
+`kling-v2.1-master-i2v`, `kling-v2.5-turbo-pro-t2v`, `seedance-pro-t2v`,
+`seedance-lite-t2v`, `seedance-pro-i2v`, `runway-text-to-video`,
+`runway-image-to-video`). Unknown ids return `501` with the list of currently
+served models.
 
-**Request** (all fields except `prompt` optional):
+**Request — image models** (all fields except `prompt` optional):
 
 ```json
 {
@@ -113,11 +132,20 @@ Replace `{model}` with one of the live model ids: `flux-dev-image`, `flux-schnel
 | Field | Type | Default | Notes |
 |---|---|---|---|
 | `prompt` | string | — | required |
-| `negative_prompt` | string | `""` | |
-| `width` | int | 1024 | |
-| `height` | int | 1024 | |
-| `num_images` | int | 1 | clamped to 1–2; each image charges separately |
-| `seed` | int | -1 | random when -1 |
+| `negative_prompt` | string | `""` | sdxl only |
+| `width` / `height` | int | 1024 | BFL clamps to 256–1440, multiples of 32 |
+| `aspect_ratio` | string | `1:1` | kontext / video models (e.g. `16:9`, `9:16`, `1:1`) |
+| `image_url` | string | — | start frame — **required** for i2v models, optional i2i edit for kontext |
+| `resolution` | string | `480p` | Seedance only: `480p`/`720p`/`1080p` |
+| `duration` | int | 5 | seconds; Kling 5/10, Seedance 2–12, Runway 2–10 |
+| `num_images` | int | 1 | clamped to 1–2, images only (each charges separately) |
+| `seed` | int | random | reproducibility |
+
+**Request — video model example** (`runway-image-to-video`):
+
+```json
+{ "prompt": "slow dolly-in, golden hour", "image_url": "https://api.opraiz.com/media/uploads/frame.png", "aspect_ratio": "16:9", "duration": 5 }
+```
 
 **Response** — the job is asynchronous; use `request_id` (or `id`) to poll:
 
@@ -133,7 +161,7 @@ Replace `{model}` with one of the live model ids: `flux-dev-image`, `flux-schnel
 | 403 | `{ "detail": { "error": "Insufficient credits" } }` | balance below cost |
 | 429 | `{ "detail": { "error": "Rate limit exceeded" } }` | >60 submits / 60 s |
 | 501 | `{ "detail": { "error": "Model '…' is not yet served by the Opraiz API. Currently served: …" } }` | unknown model id |
-| 502 | `{ "detail": { "error": "GPU submit failed: …" } }` | upstream GPU error |
+| 502 | `{ "detail": { "error": "Provider submit failed: …" } }` | upstream provider error |
 | 503 | `{ "detail": { "error": "GPU endpoint not provisioned yet" } }` | model temporarily unavailable |
 
 Example:
@@ -250,3 +278,14 @@ These endpoints are being added and are not yet live as of November 2026:
 - Credit metering on submit; per-model credit costs published above.
 - Upload/media endpoints staged behind object storage enablement (`501` until switched on).
 - MCP endpoint and account auth/keys/history surface rolling out.
+
+### November 2026 — multi-provider generation
+
+- Provider registry (`runpod`, `bfl`, `kling`, `fal`, `runway`) dispatches submit + poll
+  behind the same `POST /api/v1/{model}` → `GET /api/v1/predictions/{id}/result` contract.
+- Added real-FLUX images on BFL (`flux-dev-image` now hits FLUX.1 dev; `flux-schnell-image`
+  serves via FLUX.2 klein 4b since FLUX.1 schnell left the BFL API) and FLUX.1 Kontext
+  pro/max with optional input-image edits.
+- Added video: Kling v2.1 Master / v2.5 Turbo Pro (t2v + i2v), Seedance 1.0 pro/lite (t2v)
+  and pro (i2v) via fal, and Runway (gen4.5 t2v, gen4_turbo i2v).
+- Model catalog now reports `provider` per model; MCP `list_models` reflects the same map.

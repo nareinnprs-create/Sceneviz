@@ -30,7 +30,6 @@ import {
   PACKS,
   createDodoCheckout,
   verifyDodoWebhook,
-  verifyCashfreeWebhook,
   grantCredits,
 } from "./billing.js";
 
@@ -94,7 +93,6 @@ export default {
     // before the authenticate() gate so gateway retries never get 401s.
     if (request.method === "GET" && path === "/billing/packs") return handleBillingPacks(env);
     if (request.method === "POST" && path === "/webhooks/dodo") return handleDodoWebhook(request, env);
-    if (request.method === "POST" && path === "/webhooks/cashfree") return handleCashfreeWebhook(request, env);
 
     let auth;
     try {
@@ -380,10 +378,8 @@ function handleBillingPacks(env) {
       id,
       credits: p.credits,
       priceUSD: p.priceUSD,
-      priceINR: p.priceINR,
       gateways: p.gateways,
     })),
-    cashfreeAvailable: !!env.CASHFREE_APP_ID,
   });
 }
 
@@ -397,11 +393,6 @@ async function handleBillingCheckout(request, env, auth) {
   if (!pack) return err400("Unknown credit pack");
   const gateway = String(body?.gateway || "");
   if (!pack.gateways.includes(gateway)) return err400("Unknown gateway");
-  if (gateway === "cashfree") {
-    // shortcut: Cashfree order creation lands when CASHFREE_APP_ID arrives —
-    // until then every Cashfree-dependent path 503s.
-    return err503("Cashfree not configured yet");
-  }
   try {
     const checkout_url = await createDodoCheckout(env, auth.account, pack, auth.account.email);
     return json({ checkout_url });
@@ -440,51 +431,6 @@ async function handleDodoWebhook(request, env) {
     gatewayPaymentId,
     amountMinor: Number(obj.total_amount) || 0,
     currency: String(obj.currency || "USD"),
-  });
-  return json({ received: true, ...(result.duplicate ? { duplicate: true } : {}) });
-}
-
-async function handleCashfreeWebhook(request, env) {
-  const rawBody = await request.text();
-  const v = await verifyCashfreeWebhook(request, env, rawBody);
-  if (!v.ok) return json({ detail: { error: v.error } }, v.status);
-  let event;
-  try {
-    event = JSON.parse(rawBody);
-  } catch {
-    return err400("Invalid JSON body");
-  }
-  const type = String(event?.type || "");
-  const order = event?.data?.order || {};
-  const payment = event?.data?.payment || {};
-  const captured =
-    type === "payment.captured" ||
-    String(order.order_status || "").toUpperCase() === "PAID" ||
-    String(payment.payment_status || "").toUpperCase() === "SUCCESS";
-  if (!captured) return json({ received: true, ignored: true });
-  // Credits ride in the order metadata set at order creation; order_meta is
-  // free-form, so accept a JSON string or an object.
-  let meta = order.order_meta ?? order.order_tags ?? {};
-  if (typeof meta === "string") {
-    try {
-      meta = JSON.parse(meta);
-    } catch {
-      meta = {};
-    }
-  }
-  const accountId = String(meta?.account_id || "");
-  const credits = Number(meta?.credits || 0);
-  const gatewayPaymentId = String(payment.cf_payment_id || order.order_id || "");
-  if (!accountId || !credits || !gatewayPaymentId) {
-    return err400("Webhook payload missing order metadata (account_id, credits)");
-  }
-  const result = await grantCredits(env, {
-    accountId,
-    credits,
-    gateway: "cashfree",
-    gatewayPaymentId,
-    amountMinor: Math.round(Number(payment.payment_amount || 0) * 100),
-    currency: String(order.order_currency || payment.payment_currency || "INR"),
   });
   return json({ received: true, ...(result.duplicate ? { duplicate: true } : {}) });
 }

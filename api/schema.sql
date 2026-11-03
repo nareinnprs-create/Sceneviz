@@ -86,7 +86,7 @@ CREATE INDEX IF NOT EXISTS idx_generations_job ON generations(job_id);
 -- tables (see the keys-table note above).
 CREATE TABLE IF NOT EXISTS payments (
   id                 TEXT PRIMARY KEY,
-  gateway            TEXT NOT NULL, -- 'dodo' | 'cashfree'
+  gateway            TEXT NOT NULL, -- 'dodo'
   gateway_payment_id TEXT NOT NULL UNIQUE,
   account_id         TEXT NOT NULL,
   key_id             TEXT,

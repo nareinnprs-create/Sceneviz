@@ -6,13 +6,12 @@ import { apiJson, useSessionToken } from '@/components/dashboard/session';
 import { SkeletonLine, btnPrimary, cardClass } from '@/components/dashboard/ui';
 
 const GATEWAY_LABELS = {
-  dodo: 'Buy with Dodo (card/international)',
-  cashfree: 'Buy with Cashfree (UPI/India)',
+  dodo: 'Buy with Dodo — card / international',
 };
 
 export default function DashboardBillingPage() {
   const token = useSessionToken();
-  const [data, setData] = useState(null); // {packs, cashfreeAvailable}
+  const [data, setData] = useState(null); // {packs}
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [paid, setPaid] = useState(false);
@@ -28,7 +27,7 @@ export default function DashboardBillingPage() {
       .then(setData)
       .catch((err) => {
         if (!err.handled) toast.error(err.message);
-        setData({ packs: [], cashfreeAvailable: false });
+        setData({ packs: [] });
       });
   }, [token]);
 
@@ -73,9 +72,7 @@ export default function DashboardBillingPage() {
           <section key={pack.id} className={`${cardClass} p-6`} aria-label={`Credit pack ${pack.id}`}>
             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
               <h2 className="font-display text-xl font-bold">{pack.credits.toLocaleString()} credits</h2>
-              <p className="text-sm text-secondary">
-                {pack.priceUSD} &middot; {pack.priceINR}
-              </p>
+              <p className="text-sm text-secondary">{pack.priceUSD}</p>
             </div>
             <p className="mt-2 text-sm text-secondary">
               One-time purchase. Roughly {Math.floor(pack.credits / 4)} flux-dev or{' '}
@@ -84,15 +81,6 @@ export default function DashboardBillingPage() {
             <div className="mt-5 flex flex-col gap-3 sm:flex-row">
               <button type="button" onClick={() => buy('dodo')} disabled={busy} className={btnPrimary}>
                 {busy ? 'Starting checkout…' : GATEWAY_LABELS.dodo}
-              </button>
-              <button
-                type="button"
-                onClick={() => buy('cashfree')}
-                disabled
-                title={data.cashfreeAvailable ? 'Unavailable right now' : 'Coming soon'}
-                className={`${btnPrimary} opacity-50`}
-              >
-                {GATEWAY_LABELS.cashfree} — coming soon
               </button>
             </div>
             {error && (

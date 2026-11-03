@@ -52,15 +52,12 @@ generation test + UI metadata. Target **15–25 genuinely working models** at re
   cookie; keys scoped to accounts. No third-party auth provider needed for v1.
 - **Self-serve keys:** dashboard at `sceneviz.opraiz.com/dashboard` — create/revoke keys,
   see balance + usage. `KEY_SIGNUP_URL` → `/dashboard` (kills the homepage placeholder).
-- **Payments:** prepaid credits via **two gateways** —
-  - **Cashfree** (India: UPI, cards, netbanking)
-  - **Dodo Payments** (international; merchant-of-record — handles tax/compliance)
+- **Payments:** prepaid credits via **Dodo Payments** (merchant-of-record — cards,
+  international; handles tax/compliance).
   Checkout: Worker creates a session (amount + account_id metadata) → user pays on
-  hosted page → signed webhook (`/webhooks/cashfree`, `/webhooks/dodo`) verified →
+  hosted page → signed webhook (`/webhooks/dodo`) verified →
   D1 `credit_ledger` insert + `accounts.credits` increment. Idempotent by payment id.
-  Provider keys needed at M3: `CASHFREE_APP_ID` + `CASHFREE_SECRET_KEY` + webhook secret;
-  `DODO_API_KEY` + webhook secret. Webhook route can be built and signature-verified
-  before keys arrive (tests use a mock signature path).
+  Provider keys needed at M3: `DODO_API_KEY` (set) + webhook signing secret.
 - **Admin:** tiny internal CLI/dashboard for refunds, bans, credit grants.
 - This workstream replaces the BYOK flow — the last muapi-shaped UX.
 
@@ -187,7 +184,7 @@ RunPod spend is usage-based; caps protect against abuse (rate limit + credits + 
 
 | # | Decision | Options | Recommendation |
 |---|---|---|---|
-| D1 | Payment provider | ~~Stripe/Razorpay~~ → **Cashfree (India) + Dodo Payments (intl)** — decided | build both at M3; Dodo is merchant-of-record so no separate tax handling |
+| D1 | Payment provider | ~~Stripe/Razorpay/Cashfree~~ → **Dodo Payments only** — decided | merchant-of-record: no separate tax handling |
 | D2 | Auth | email+password D1 (rec) / magic-link-only / OAuth (Google) | email+password + optional Google later |
 | D3 | Video models first pick | WAN 2.2 / LTX / Hunyuan / Sora-class via available workers | WAN 2.2 (quality/cost balance) |
 | D4 | GPU budget cap | hard monthly ceiling in RunPod dashboard + per-endpoint workersMax | set ceiling now, e.g. $200/mo |

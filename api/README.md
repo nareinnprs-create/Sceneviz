@@ -85,7 +85,7 @@ Phase B details: model map in `src/modelMap.js` (endpoint env `RUNPOD_ENDPOINT_I
 ## Billing (M3 — prepaid credits)
 
 Credit packs are bought from the dashboard (`/dashboard/billing`). One pack today:
-`credits500` = 500 credits for **$2.99** (Dodo, international card) / **₹249** (Cashfree, UPI — not live yet).
+`credits500` = 500 credits for **$2.99** (Dodo Payments — cards, international; merchant-of-record).
 Dodo product: `pdt_0Nr933P1czZWydfhLqAZL`.
 
 Flow: dashboard → `POST /billing/checkout` → Dodo hosted `checkout_url` → user pays →
@@ -97,19 +97,17 @@ that account (keys mirror the account balance).
 
 | Method | Path | Auth | Notes |
 |---|---|---|---|
-| GET | `/billing/packs` | none | `{packs:[{id, credits, priceUSD, priceINR, gateways}], cashfreeAvailable}` |
-| POST | `/billing/checkout` | session | `{pack:'credits500', gateway:'dodo'}` → `{checkout_url}` — redirect the browser there. `gateway:'cashfree'` → 503 until configured. Keys cannot buy credits (401). |
+| GET | `/billing/packs` | none | `{packs:[{id, credits, priceUSD, gateways}]}` |
+| POST | `/billing/checkout` | session | `{pack:'credits500', gateway:'dodo'}` → `{checkout_url}` — redirect the browser there. Keys cannot buy credits (401). |
 | POST | `/webhooks/dodo` | signature | Svix scheme: HMAC-SHA256 over `{webhook-id}.{webhook-timestamp}.{raw body}`, base64, compared against each `v1,<sig>` in `webhook-signature`; timestamps older than 5 min → 400. Grants on `payment.succeeded` (also accepts `checkout.completed`) from `metadata.{account_id, credits}`. |
-| POST | `/webhooks/cashfree` | signature | base64 HMAC-SHA256 of the **raw body** vs `x-webhook-signature`. Grants on `payment.captured` / order `PAID` from order metadata `{account_id, credits}`. Order creation itself ships with `CASHFREE_APP_ID`. |
 
-**Fail-closed webhooks:** both webhook routes return
-`503 {detail:{error:'Webhook not configured'}}` and never parse the body until their secret
+**Fail-closed webhooks:** the webhook route returns
+`503 {detail:{error:'Webhook not configured'}}` and never parses the body until the secret
 exists. Bad signatures/timestamps → `400`; unknown event types → `200 {received:true, ignored:true}`.
 
-Secrets still to set (`npx wrangler secret put <NAME>`):
-- `DODO_WEBHOOK_SECRET` — webhook signing secret from the Dodo dashboard (paste the `whsec_…` value verbatim; the code strips the prefix and base64-decodes it)
-- `CASHFREE_WEBHOOK_SECRET` — Cashfree webhook signature secret
-- `CASHFREE_APP_ID` — unblocks Cashfree checkout (routes 503 with `Cashfree not configured yet` until then; `CASHFREE_SECRET_KEY` is already set)
+Secret still to set (`npx wrangler secret put DODO_WEBHOOK_SECRET`): the webhook signing
+secret from the Dodo dashboard (paste the `whsec_…` value verbatim; the code strips the
+prefix and base64-decodes it).
 
 ## MCP
 ```powershell

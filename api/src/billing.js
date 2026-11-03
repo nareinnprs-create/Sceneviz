@@ -1,12 +1,11 @@
 /**
  * M3 billing: credit packs, Dodo checkout creation, webhook signature
- * verification (Dodo = Svix scheme, Cashfree = plain HMAC), and idempotent
- * credit grants.
+ * verification (Dodo = Svix scheme), and idempotent credit grants.
  *
  * Fail-closed rule: webhook verification refuses to look at anything until the
- * signing secret exists (env.DODO_WEBHOOK_SECRET / env.CASHFREE_WEBHOOK_SECRET)
- * — callers 503 BEFORE any JSON.parse of the body. Secrets are only ever
- * referenced as env.<NAME>; no secret literal appears in this file.
+ * signing secret exists (env.DODO_WEBHOOK_SECRET) — callers 503 BEFORE any
+ * JSON.parse of the body. Secrets are only ever referenced as env.<NAME>; no
+ * secret literal appears in this file.
  */
 
 export const PACKS = {
@@ -14,8 +13,7 @@ export const PACKS = {
     credits: 500,
     dodoProduct: "pdt_0Nr933P1czZWydfhLqAZL", // "Sceneviz — 500 credits", $2.99 one-time
     priceUSD: "$2.99",
-    priceINR: "₹249",
-    gateways: ["dodo", "cashfree"],
+    gateways: ["dodo"],
   },
 };
 
@@ -105,18 +103,6 @@ export async function verifyDodoWebhook(request, env, rawBody) {
   if (!provided.some((sig) => sig && safeEqual(sig, expected))) {
     return verifyFail(400, "Invalid webhook signature");
   }
-  return { ok: true };
-}
-
-/** Cashfree signs the raw body directly with the webhook secret. */
-export async function verifyCashfreeWebhook(request, env, rawBody) {
-  if (!env.CASHFREE_WEBHOOK_SECRET) return verifyFail(503, "Webhook not configured");
-  const version = request.headers.get("x-webhook-verify");
-  if (version && version !== "1") return verifyFail(400, "Unsupported webhook version");
-  const provided = (request.headers.get("x-webhook-signature") || "").trim();
-  if (!provided) return verifyFail(400, "Missing x-webhook-signature header");
-  const expected = await hmacBase64(new TextEncoder().encode(env.CASHFREE_WEBHOOK_SECRET), rawBody);
-  if (!safeEqual(provided, expected)) return verifyFail(400, "Invalid webhook signature");
   return { ok: true };
 }
 

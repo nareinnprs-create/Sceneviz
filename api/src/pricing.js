@@ -7,7 +7,7 @@
  * publish per-model costs. Calibrate via `node scripts/admin.mjs margin`.
  */
 
-const MARKUP = 2.4;
+const MARKUP = 2.6; // tier-discounted buyers still land ≥50% net margin
 const CREDIT_CENTS = 0.6; // $0.006 per credit ($2.99 / 500)
 
 const UPSTREAM_CENTS = {

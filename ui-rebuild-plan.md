@@ -111,7 +111,7 @@ Redirects: old → new 301s for one release.
 | P5 | Retirement deletes + redirects + full i18n + N11 help/FAQ + polish | Zero old-UI files; grep clean | 4–5 d |
 | (P6) | Desktop decision + rebuild or retire (D1) | — | 3–5 d |
 
-Total ≈ 6–9 weeks sequential; P1 alone is a coherent beta launch.
+Total ≈ 6–9 weeks sequential (competitor-parity items add ~8–10 d across P2–P5); P1 alone is a coherent beta launch.
 
 ## 7. Decisions needed
 
@@ -123,6 +123,41 @@ Total ≈ 6–9 weeks sequential; P1 alone is a coherent beta launch.
 | D4 | Free credits | keep 0 (current) | keep 0 |
 | D5 | Video pricing | keep 2.6× proportional | keep |
 | D6 | Moderation depth (N1) | keyword pre-filter + provider signals (rec) / ML model | keyword + provider signals first |
+| D7 | Free tier + watermarked playground (S1/H5) | approve after P2.5 moderation lands | approve then |
+
+## 4d. Competitor-parity backlog (Higgsfield / Artlist / muapi)
+
+Recommended subset **scheduled**; the rest documented as skip/backlog.
+
+### Scheduled
+
+| # | Feature (source) | Approach | Phase |
+|---|---|---|---|
+| H1 | Cinematic camera presets (Higgsfield's moat) — dolly/crash-zoom/bullet-time chips | Prompt-template presets + Kling `camera_control` param wired in video tab | P3 |
+| H3 | Start+end frame video | Kling i2v `image_tail` exposed in translate + two-image UI | P3 |
+| S1 | **Public playground** — try basic models before signup (watermarked, limited) | Anonymous endpoint + watermark + Turnstile; pairs with N1 moderation | P2.5 (needs D7) |
+| S2 | **Remix/variation** — "remix this" from history/public outputs | Prefill workspace from any generation row | P4 |
+| H6 | Subscriptions + unlimited-tier lever | Already N7/P4; credit amounts aligned to Higgsfield bands (200/1k/3k per mo) | P4 |
+| S4 | Per-model SEO pages (muapi's acquisition engine) | `/models/{id}` public pages from modelCatalog | P2 |
+| A1 | Licensing page — commercial-rights statement per model license | Legal pass + static page | P2.5 |
+| N11 | Help/FAQ + onboarding tour | Static + short coach marks | P5 |
+| S7 | Mobile-web responsive audit | P5 polish | P5 |
+
+### Backlog (after GA)
+
+| # | Item | Note |
+|---|---|---|
+| H2 | One-click motion/effects templates | Effects gallery over i2v |
+| H4 | Talking characters (lip-sync + consistent voice) | Needs TTS (P4) + lip-sync provider research |
+| H5 | Daily free credits for free tier | Tied to D7 + watermark infra |
+| A4 | Projects/collections (folders, favorites) | History organization |
+| S3 | Referral/affiliate program | Credits for referrals |
+| S5 | Languages beyond en/zh | muapi ships 11 |
+| S8 | Runway asset idempotency at scale, veo3.1/Sora 2 provider research | Premium branded video |
+
+### Skipped (documented decision)
+
+H7 proprietary model · A2 music/SFX library · A5 editor plugins · A6 teams · A7 licensed-footage model — out of our lane or long-term R&D.
 
 ## 8. Risks
 

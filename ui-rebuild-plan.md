@@ -68,6 +68,25 @@ canonical routes for one release, then removed.
 | C8 | Email (verify/reset/receipts) | Trust flows | **user key** |
 | C9 | Admin UI (`/admin` on dashboard, ops-only) | Refunds/bans without CLI | none |
 
+## 4b. Approved additions (N1–N12)
+
+| # | Item | Unlocks | Effort |
+|---|---|---|---|
+| N1 | **Content moderation** — keyword pre-filter + provider moderation signals on all generation submits (403 with clear code; logged) | Legal/brand protection, ToS enforcement | 3–5 d |
+| N2 | **Alerting** — 5xx spike + webhook-failure + job-failure-rate notifications to devops@opraiz.com | Ops visibility | 1–2 d |
+| N3 | **GDPR endpoints** — `GET /me/export` (JSON+media manifest), `DELETE /me` (account+keys+sessions+media wipe) | Privacy-policy compliance | 2–3 d |
+| N4 | **Per-user in-flight cap** — max 3 non-terminal generations per account | Queue fairness | 0.5 d |
+| N5 | **Cloudflare Turnstile** on signup/login | Bot/spam protection, free | 0.5 d |
+| N6 | **Queue position + ETA** in poll response (`queue_position`, `eta_seconds`) | Generation UX | 1 d |
+| N7 | **Subscriptions + auto-top-up** — Dodo recurring monthly packs (discounted credits), low-balance auto recharge | Recurring revenue | 4–6 d |
+| N8 | **Invoices/receipts** — surface Dodo invoice URLs on billing history | Business users | 0.5 d |
+| N9 | **Image-to-image everywhere** — input-image support across all image models | Half the image product | 1–2 d |
+| N10 | **Upscale endpoint** — RunPod public upscale model | Catalog expectation | 0.5 d |
+| N11 | **Help/FAQ + onboarding tour** | Support deflection | 1–2 d |
+| N12 | **D1 backup restore drill** — verify Time Travel, document runbook | Insurance verified | 0.5 d |
+
+## 4c. Decisions (new)
+
 ## 5. Retirement (P5, after parity)
 
 Delete: `components/StandaloneShell.js`, all 16 old studio tab components,
@@ -83,15 +102,16 @@ Redirects: old → new 301s for one release.
 
 | Phase | Delivers | Exit criteria | Est. |
 |---|---|---|---|
-| P0 | Design system + ui components + `lib/api.js` + C1/C2/C3 backend | Components render in isolation; client typed | 3–4 d |
+| P0 | Design system + ui components + `lib/api.js` + C1/C2/C3 backend + N4 in-flight cap + N5 Turnstile | Components render in isolation; client typed | 4–5 d |
 | P1 | New landing + dashboard (5 pages) + Studio image tab (incl. C7) + old landing/dashboard retired | New user: signup → key → generate → buy, all in new UI | 5–7 d |
 | P2 | C4 LLM brains + Agents studio + /docs + MCP page | Agent chat answers with a real LLM; no template note | 4–6 d |
-| P3 | C6 video models + Video tab + Workflows builder-lite + architect | End-to-end video generation in new UI | 5–7 d |
-| P4 | C5 audio + Audio tab + Creative workspace + sync/SSE UX | All four modalities generate in new UI | 4–6 d |
-| P5 | Retirement deletes + redirects + full i18n + polish | Zero old-UI files; grep clean | 3–4 d |
+| P2.5 | **Trust & polish**: N1 moderation + N2 alerting + N3 GDPR + N6 queue ETA + N8 invoices + N12 backup drill | No unmoderated generation; ops alerted; GDPR self-serve | 8–11 d |
+| P3 | C6 video models + Video tab + Workflows builder-lite + architect + N9 i2i everywhere + N10 upscale | End-to-end video generation in new UI | 6–8 d |
+| P4 | C5 audio + Audio tab + Creative workspace + sync/SSE UX + N7 subscriptions/auto-top-up | All four modalities generate in new UI; recurring revenue live | 8–12 d |
+| P5 | Retirement deletes + redirects + full i18n + N11 help/FAQ + polish | Zero old-UI files; grep clean | 4–5 d |
 | (P6) | Desktop decision + rebuild or retire (D1) | — | 3–5 d |
 
-Total ≈ 4–6 weeks sequential; P1 alone is a coherent beta launch.
+Total ≈ 6–9 weeks sequential; P1 alone is a coherent beta launch.
 
 ## 7. Decisions needed
 
@@ -102,6 +122,7 @@ Total ≈ 4–6 weeks sequential; P1 alone is a coherent beta launch.
 | D3 | Old routes | 301 redirects for one release, then gone | approve |
 | D4 | Free credits | keep 0 (current) | keep 0 |
 | D5 | Video pricing | keep 2.6× proportional | keep |
+| D6 | Moderation depth (N1) | keyword pre-filter + provider signals (rec) / ML model | keyword + provider signals first |
 
 ## 8. Risks
 
@@ -110,5 +131,6 @@ Total ≈ 4–6 weeks sequential; P1 alone is a coherent beta launch.
 | Big-bang rebuild breaks working flows | Phased; old UI stays live until each phase's parity is verified |
 | LLM replies (C4) cost/conversation runaway | per-reply credit charge (2–4 cr) + existing rate limit |
 | RunPod public catalog rotation kills a model | modelMap is data — re-route/deploy; UI reads /models so it self-corrects |
+| Unmoderated content (N1 gap until P2.5) | P2.5 lands before public marketing push; keyword filter ships first |
 | i18n debt | i18n module enforced from P0; no hardcoded strings in new components |
 | Retired packages break builds | P5 deletion only after P4 parity; CI guards |
